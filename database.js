@@ -1,42 +1,34 @@
-// database.js
+// database.js (ESM Version)
 
-require('dotenv').config(); 
-const { MongoClient } = require('mongodb'); // <-- ONLY ONE DECLARATION HERE
+import { config } from 'dotenv'; // Import config from dotenv
+import { MongoClient } from 'mongodb'; // Import MongoClient from mongodb
+config(); // Load environment variables
 
-// Get variables from .env file
-const uri = process.env.MONGO_URI; 
-const dbName = "musiccuratorDB"; 
+const uri = process.env.MONGO_URI;
+const dbName = "musiccuratorDB";
 
 if (!uri) {
     throw new Error("MONGO_URI environment variable not set. Check your .env file.");
 }
 
 const client = new MongoClient(uri);
-let db; 
+let db;
 
-// --- CONNECTION FUNCTION ---
-async function connectDB() {
+export async function connectDB() { // Add export
     try {
         console.log("Connecting to MongoDB Atlas...");
         await client.connect();
-        db = client.db(dbName); 
+        db = client.db(dbName);
         console.log(`Successfully connected to MongoDB database: ${dbName}!`);
-
     } catch (error) {
         console.error("Database connection failed:", error.message);
-        process.exit(1); 
+        process.exit(1);
     }
 }
 
-// --- CORE OPERATIONS ---
-
-// Function to save an array of news articles to the 'articles' collection
-async function insertArticles(articles) {
-    if (!db) {
-        throw new Error("Database not connected.");
-    }
+export async function insertArticles(articles) { // Add export
+    if (!db) { throw new Error("Database not connected."); }
     const collection = db.collection('articles');
-
     const operations = articles.map(article => ({
         updateOne: {
             filter: { link: article.link },
@@ -44,7 +36,6 @@ async function insertArticles(articles) {
             upsert: true
         }
     }));
-
     if (operations.length > 0) {
         try {
             const result = await collection.bulkWrite(operations);
@@ -55,19 +46,8 @@ async function insertArticles(articles) {
     }
 }
 
-// Function to fetch all stored articles for the frontend display
-async function getAllArticles() {
-    if (!db) {
-        throw new Error("Database not connected.");
-    }
+export async function getAllArticles() { // Add export
+    if (!db) { throw new Error("Database not connected."); }
     const collection = db.collection('articles');
     return await collection.find({}).sort({ pubDate: -1 }).toArray();
 }
-
-
-// --- EXPORTS ---
-module.exports = {
-    connectDB,
-    insertArticles,
-    getAllArticles
-};

@@ -1,29 +1,25 @@
-// server.js (Verified Final Version)
+// server.js (ESM Version)
 
 // 1. Import modules
-const express = require('express');
-const bodyParser = require('body-parser');
-const aggregator = require('./aggregator');
-const db = require('./database');
-const curator = require('./curator');
+import express from 'express';
+import bodyParser from 'body-parser';
+import * as aggregator from './aggregator.js'; // Use .js extension
+import * as db from './database.js';       // Use .js extension
+import * as curator from './curator.js';      // Use .js extension
 
 // 2. Initialize the app and set the port
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000; // Railway provides a PORT env variable
 
 // --- MIDDLEWARE SETUP ---
 app.use(bodyParser.json());
-app.use(express.static('public')); // Serve frontend files
+app.use(express.static('public'));
 
 // --- API ROUTES (Endpoints) ---
-// All routes must be defined BEFORE app.listen is called inside startApp
-
-// Root route (serves frontend or a simple message)
 app.get('/', (req, res) => {
     res.send('Phase Loop Records API is running!');
 });
 
-// Fetch all stored news articles
 app.get('/api/news', async (req, res) => {
     console.log("--> Received request for /api/news");
     try {
@@ -36,7 +32,6 @@ app.get('/api/news', async (req, res) => {
     }
 });
 
-// Content Curation Endpoint (AI Text + Image Search)
 app.post('/api/curate', async (req, res) => {
     const article = req.body;
     if (!article || !article.title) {
@@ -51,9 +46,8 @@ app.post('/api/curate', async (req, res) => {
     }
 });
 
-// Simple Preview Image Generation
 app.post('/api/generate-simple-preview', async (req, res) => {
-    console.log("--> Received request for /api/generate-simple-preview"); // Added log
+    console.log("--> Received request for /api/generate-simple-preview");
     const { imageUrl, headline, description } = req.body;
     if (!imageUrl || !headline || !description) {
         return res.status(400).json({ error: 'Missing data for preview.' });
@@ -67,29 +61,25 @@ app.post('/api/generate-simple-preview', async (req, res) => {
     }
 });
 
-
-// Social Media Sharing (MOCK-UP)
 app.post('/api/share', async (req, res) => {
-    console.log("--> Received request for /api/share"); // Added log
+    console.log("--> Received request for /api/share");
     const { imagePath, caption, platform } = req.body;
     console.log(`\n*** MOCK SHARE REQUEST ***`);
     console.log(`Platform: ${platform}`);
     console.log(`Image Path: ${imagePath}`);
     console.log(`Caption: ${(caption || '').substring(0, 80)}...`);
     console.log(`**************************\n`);
-
     if (platform === 'Instagram Story') {
         return res.status(403).json({ error: 'Instagram Story posting via API is restricted.' });
     }
     res.json({ success: true, message: `Successfully simulated sharing to ${platform}!` });
 });
 
-
 // --- SERVER START FUNCTION ---
 async function startApp() {
     try {
         await db.connectDB();
-        app.listen(PORT, () => {
+        app.listen(PORT, () => { // Use the PORT variable
             console.log(`Server running at http://localhost:${PORT}`);
             aggregator.startScheduler();
         });

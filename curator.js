@@ -1,12 +1,20 @@
-// curator.js (FINAL VERSION - Stylish Text Overlays)
+// curator.js (ESM Version)
 
-require('dotenv').config();
-const { GoogleGenAI } = require('@google/genai');
-const { google } = require('googleapis');
-const path = require('path');
-const sharp = require('sharp');
-const fs = require('fs/promises');
-const fetch = require('node-fetch');
+import { config } from 'dotenv'; // Import config from dotenv
+import { GoogleGenAI } from '@google/genai'; // Import GoogleGenAI
+import { google } from 'googleapis';
+import path from 'path'; // Import path
+import sharp from 'sharp';
+import fs from 'fs/promises'; // Import fs/promises
+import fetch from 'node-fetch';
+import { fileURLToPath } from 'url'; // Needed for __dirname replacement
+
+config(); // Load environment variables
+
+// --- ESM FIX for __dirname ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// -----------------------------
 
 // --- API CLIENTS SETUP ---
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -15,7 +23,6 @@ const customsearch = google.customsearch('v1');
 const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
-// --- HELPER FUNCTION: REAL IMAGE SEARCH ---
 async function searchForRelevantImages(query) {
     console.log(`[Image Search] Searching for: ${query}`);
     try {
@@ -28,8 +35,7 @@ async function searchForRelevantImages(query) {
     } catch (error) { console.error(`[Image Search ERROR]`, error.message); return []; }
 }
 
-// --- CORE FUNCTION 1: CURATE ARTICLE ---
-async function curateArticle(article) {
+export async function curateArticle(article) { // Add export
     const searchQuery = `${article.title} ${article.source}`;
     const relevantImages = await searchForRelevantImages(searchQuery);
     const prompt = `
@@ -51,10 +57,7 @@ async function curateArticle(article) {
     } catch (error) { console.error("[AI ERROR]", error.message); return { headline: "AI Failed", description: "Try again.", caption: "Error.", images: relevantImages }; }
 }
 
-// curator.js (UPDATED functions for text fit)
-
-// --- CORE FUNCTION 3: GENERATE SIMPLE PREVIEW IMAGE (Final Text Fit) ---
-async function generateSimplePreviewImage(imageUrl, headline, description) {
+export async function generateSimplePreviewImage(imageUrl, headline, description) { // Add export
     console.log(`[Simple Preview] Starting preview for: ${imageUrl}`);
     try {
         const response = await fetch(imageUrl);
@@ -62,23 +65,14 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         const imageBuffer = await response.buffer();
         const firstSentence = description.split(/[.!?]/)[0] + '.';
         const cleanedHeadline = headline.replace(/^\*\*|\*\*$/g, '');
-
-        // **REDUCED HEADLINE FONT SIZE**
         const overlayHeight = 90;
-        const svgOverlay = `<svg width="800" height="${overlayHeight}">
-            <rect x="0" y="0" width="800" height="${overlayHeight}" fill="#000000" opacity="0.7"/>
-            {/* Headline: Reduced font size to 22px */}
-            <text x="15" y="35" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 22px; font-weight: 900;" fill="#FFFFFF">${cleanedHeadline}</text>
-            {/* First sentence */}
-            <text x="15" y="65" style="font-family: Arial, sans-serif; font-size: 14px;" fill="#DDDDDD">${firstSentence}</text>
-        </svg>`;
-
+        const svgOverlay = `<svg width="800" height="${overlayHeight}"><rect x="0" y="0" width="800" height="${overlayHeight}" fill="#000000" opacity="0.7"/><text x="15" y="35" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 22px; font-weight: 900;" fill="#FFFFFF">${cleanedHeadline}</text><text x="15" y="65" style="font-family: Arial, sans-serif; font-size: 14px;" fill="#DDDDDD">${firstSentence}</text></svg>`;
         const previewImageBuffer = await sharp(imageBuffer)
             .resize({ width: 800, height: 800, fit: 'cover' })
-            .composite([{ input: Buffer.from(svgOverlay), top: 800 - overlayHeight - 20, left: 0 }]) // Positioned 20px from bottom
+            .composite([{ input: Buffer.from(svgOverlay), top: 800 - overlayHeight - 20, left: 0 }])
             .png().toBuffer();
         const filename = `preview_${Date.now()}.png`;
-        const imagePath = path.join(process.cwd(), 'public', filename);
+        const imagePath = path.join(__dirname, '../public', filename); // Use updated path logic
         await fs.writeFile(imagePath, previewImageBuffer);
         console.log(`[Simple Preview] Success: ${imagePath}`);
         return `/${filename}`;
@@ -87,12 +81,3 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         return '/fallback.png';
     }
 }
-
-
-// --- EXPORTS ---
-// (Ensure exports include curateArticle and generateSimplePreviewImage)
-module.exports = {
-    curateArticle,
-    // generateBrandedImage, // This should be removed if you simplified
-    generateSimplePreviewImage
-};
