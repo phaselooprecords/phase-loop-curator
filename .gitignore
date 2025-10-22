@@ -1,0 +1,10 @@
+# Dependencies and Logs
+/node_modules
+npm-debug.log*
+
+# Sensitive Files (CRITICAL!)
+.env
+
+# Image Output
+/public/post_*
+/public/preview_*
