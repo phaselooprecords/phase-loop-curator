@@ -1,9 +1,9 @@
 {
-"name": "phase-loop-curator",
+  "name": "phase-loop-curator",
   "version": "1.0.0",
-  "description": "...",
+  "description": "AI-powered music news curator and social media prep tool.",
   "main": "server.js",
-  "type": "module",  /* <-- ADD THIS LINE */
+  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
