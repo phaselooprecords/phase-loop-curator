@@ -1,11 +1,11 @@
-// server.js (ESM Version)
+// server.js (Verified CommonJS Version)
 
 // 1. Import modules
-import express from 'express';
-import bodyParser from 'body-parser';
-import * as aggregator from './aggregator.js'; // Use .js extension
-import * as db from './database.js';       // Use .js extension
-import * as curator from './curator.js';      // Use .js extension
+const express = require('express');
+const bodyParser = require('body-parser');
+const aggregator = require('./aggregator.js'); // Use .js extension
+const db = require('./database.js');       // Use .js extension
+const curator = require('./curator.js');      // Use .js extension
 
 // 2. Initialize the app and set the port
 const app = express();

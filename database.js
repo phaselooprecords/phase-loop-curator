@@ -1,8 +1,7 @@
-// database.js (ESM Version)
+// database.js (CommonJS Version)
 
-import { config } from 'dotenv'; // Import config from dotenv
-import { MongoClient } from 'mongodb'; // Import MongoClient from mongodb
-config(); // Load environment variables
+require('dotenv').config(); // Use require for dotenv
+const { MongoClient } = require('mongodb'); // Use require for mongodb
 
 const uri = process.env.MONGO_URI;
 const dbName = "musiccuratorDB";
@@ -14,7 +13,7 @@ if (!uri) {
 const client = new MongoClient(uri);
 let db;
 
-export async function connectDB() { // Add export
+async function connectDB() {
     try {
         console.log("Connecting to MongoDB Atlas...");
         await client.connect();
@@ -26,7 +25,7 @@ export async function connectDB() { // Add export
     }
 }
 
-export async function insertArticles(articles) { // Add export
+async function insertArticles(articles) {
     if (!db) { throw new Error("Database not connected."); }
     const collection = db.collection('articles');
     const operations = articles.map(article => ({
@@ -46,8 +45,15 @@ export async function insertArticles(articles) { // Add export
     }
 }
 
-export async function getAllArticles() { // Add export
+async function getAllArticles() {
     if (!db) { throw new Error("Database not connected."); }
     const collection = db.collection('articles');
     return await collection.find({}).sort({ pubDate: -1 }).toArray();
 }
+
+// --- EXPORTS (CommonJS Syntax) ---
+module.exports = {
+    connectDB,
+    insertArticles,
+    getAllArticles
+};

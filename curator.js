@@ -1,24 +1,16 @@
-// curator.js (ESM Version)
+// curator.js (CommonJS Version)
 
-import { config } from 'dotenv'; // Import config from dotenv
-import { GoogleGenAI } from '@google/genai'; // Import GoogleGenAI
-import { google } from 'googleapis';
-import path from 'path'; // Import path
-import sharp from 'sharp';
-import fs from 'fs/promises'; // Import fs/promises
-import fetch from 'node-fetch';
-import { fileURLToPath } from 'url'; // Needed for __dirname replacement
-
-config(); // Load environment variables
-
-// --- ESM FIX for __dirname ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-// -----------------------------
+require('dotenv').config(); // Use require
+const { GoogleGenAI } = require('@google/genai'); // Use require
+const { google } = require('googleapis');
+const path = require('path');
+const sharp = require('sharp');
+const fs = require('fs/promises');
+const fetch = require('node-fetch');
 
 // --- API CLIENTS SETUP ---
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const model = 'gemini-2.5-flash';
+const ai = new GoogleGenAI(process.env.GEMINI_API_KEY); // Simplified constructor for 0.2.2
+const model = 'gemini-pro'; // Use a model name compatible with v0.2.2
 const customsearch = google.customsearch('v1');
 const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
@@ -35,7 +27,7 @@ async function searchForRelevantImages(query) {
     } catch (error) { console.error(`[Image Search ERROR]`, error.message); return []; }
 }
 
-export async function curateArticle(article) { // Add export
+async function curateArticle(article) {
     const searchQuery = `${article.title} ${article.source}`;
     const relevantImages = await searchForRelevantImages(searchQuery);
     const prompt = `
@@ -45,19 +37,37 @@ export async function curateArticle(article) { // Add export
         2. SHORT DESCRIPTION (max 40 words).
         3. SOCIAL MEDIA CAPTION (max 100 words). Include #PhaseLoopRecords and mention source (${article.source}).
         NEWS TITLE: "${article.title}"
-        FORMAT RESPONSE STRICTLY AS JSON: { "headline": "...", "description": "...", "caption": "..." }`;
+        
+        This response MUST be in valid JSON format: { "headline": "...", "description": "...", "caption": "..." }`;
+
     try {
-        const response = await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }], config: { responseMimeType: "application/json" } });
-        if (!response || !response.text) { throw new Error("API response text invalid."); }
-        const result = JSON.parse(response.text.trim());
+        // v0.2.2 syntax for generative model
+        const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
+        const generativeModel = genAI.getGenerativeModel({ model: "gemini-pro" }); // Use gemini-pro
+        
+        const result = await generativeModel.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        if (!text) { throw new Error("API response text invalid."); }
+
+        // Clean the text to ensure it's valid JSON
+        const jsonText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const aiResult = JSON.parse(jsonText);
+        
         console.log(`[AI] Successfully generated content for: ${article.title}`);
-        result.images = relevantImages;
-        result.originalSource = article.source;
-        return result;
-    } catch (error) { console.error("[AI ERROR]", error.message); return { headline: "AI Failed", description: "Try again.", caption: "Error.", images: relevantImages }; }
+        
+        aiResult.images = relevantImages;
+        aiResult.originalSource = article.source;
+        return aiResult;
+
+    } catch (error) {
+        console.error("[AI ERROR]", error.message);
+        return { headline: "AI Failed", description: "Try again.", caption: "Error.", images: relevantImages };
+    }
 }
 
-export async function generateSimplePreviewImage(imageUrl, headline, description) { // Add export
+async function generateSimplePreviewImage(imageUrl, headline, description) {
     console.log(`[Simple Preview] Starting preview for: ${imageUrl}`);
     try {
         const response = await fetch(imageUrl);
@@ -72,7 +82,7 @@ export async function generateSimplePreviewImage(imageUrl, headline, description
             .composite([{ input: Buffer.from(svgOverlay), top: 800 - overlayHeight - 20, left: 0 }])
             .png().toBuffer();
         const filename = `preview_${Date.now()}.png`;
-        const imagePath = path.join(__dirname, '../public', filename); // Use updated path logic
+        const imagePath = path.join(process.cwd(), 'public', filename); // process.cwd() is available globally
         await fs.writeFile(imagePath, previewImageBuffer);
         console.log(`[Simple Preview] Success: ${imagePath}`);
         return `/${filename}`;
@@ -81,3 +91,9 @@ export async function generateSimplePreviewImage(imageUrl, headline, description
         return '/fallback.png';
     }
 }
+
+// --- EXPORTS (CommonJS Syntax) ---
+module.exports = {
+    curateArticle,
+    generateSimplePreviewImage
+};
