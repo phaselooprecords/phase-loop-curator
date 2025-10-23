@@ -2,14 +2,19 @@
 
 // 1. Import modules
 const express = require('express');
+const { startNewsFetch } = require('./aggregator.js'); 
 const bodyParser = require('body-parser');
 const aggregator = require('./aggregator');
 const db = require('./database');
 const curator = require('./curator');
+const cluster = require('cluster');
+const os = require('os');
+const numCPUs = os.cpus().length;
 
 // 2. Initialize the app and set the port
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+
 
 // --- MIDDLEWARE SETUP ---
 app.use(bodyParser.json());
@@ -89,7 +94,7 @@ app.post('/api/share', async (req, res) => {
 async function startApp() {
     try {
         await db.connectDB();
-        app.listen(PORT, () => {
+        app.listen(PORT,'0.0.0.0', () => {
             console.log(`Server running at http://localhost:${PORT}`);
             aggregator.startScheduler();
         });
@@ -100,5 +105,22 @@ async function startApp() {
 }
 
 // --- INITIATE SERVER START ---
-startApp();
 
+if (cluster.isPrimary) {
+  console.log(`Primary ${process.pid} is running`);
+
+  // Fork workers for each CPU.
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+
+  // Log when a worker dies
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`worker ${worker.process.pid} died`);
+  });
+  
+} else {
+  // This is a worker process.
+  // Only worker processes should start the app and listen on the port.
+  startApp();
+}
