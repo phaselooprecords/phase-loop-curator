@@ -1,15 +1,15 @@
-// server.js (ESM Version)
+// server.js (CommonJS Version)
 
 // 1. Import modules
-import express from 'express';
-import bodyParser from 'body-parser';
-import * as aggregator from './aggregator.js'; // Use .js extension
-import * as db from './database.js';       // Use .js extension
-import * as curator from './curator.js';      // Use .js extension
+const express = require('express');
+const bodyParser = require('body-parser');
+const aggregator = require('./aggregator.js');
+const db = require('./database.js');
+const curator = require('./curator.js');
 
 // 2. Initialize the app and set the port
 const app = express();
-const PORT = process.env.PORT || 3000; // Railway provides a PORT env variable
+const PORT = process.env.PORT || 3000; // Use Railway's port
 
 // --- MIDDLEWARE SETUP ---
 app.use(bodyParser.json());
@@ -79,8 +79,8 @@ app.post('/api/share', async (req, res) => {
 async function startApp() {
     try {
         await db.connectDB();
-        app.listen(PORT, () => { // Use the PORT variable
-            console.log(`Server running at http://localhost:${PORT}`);
+        app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
             aggregator.startScheduler();
         });
     } catch (dbError) {

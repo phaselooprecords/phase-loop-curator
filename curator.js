@@ -1,24 +1,15 @@
-// curator.js (ESM Version)
+// curator.js (CommonJS Version)
 
-import { config } from 'dotenv';
-import { GoogleGenAI } from '@google/genai';
-import { google } from 'googleapis';
-import path from 'path';
-import sharp from 'sharp';
-import fs from 'fs/promises';
-import fetch from 'node-fetch';
-import { fileURLToPath } from 'url';
+require('dotenv').config();
+const { GoogleGenAI } = require('@google/genai');
+const { google } = require('googleapis');
+const path = require('path');
+const sharp = require('sharp');
+const fs = require('fs/promises');
+const fetch = require('node-fetch');
 
-config(); // Load environment variables
-
-// --- ESM FIX for __dirname ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-// -----------------------------
-
-// --- API CLIENTS SETUP (NEW SYNTAX) ---
-const ai = new GoogleGenAI(process.env.GEMINI_API_KEY);
-const model = 'gemini-pro'; // Use a standard model name
+// --- API CLIENTS SETUP (v0.2.2 Syntax) ---
+const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY); // Main client
 const customsearch = google.customsearch('v1');
 const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
@@ -35,7 +26,7 @@ async function searchForRelevantImages(query) {
     } catch (error) { console.error(`[Image Search ERROR]`, error.message); return []; }
 }
 
-export async function curateArticle(article) {
+async function curateArticle(article) {
     const searchQuery = `${article.title} ${article.source}`;
     const relevantImages = await searchForRelevantImages(searchQuery);
     const prompt = `
@@ -49,12 +40,12 @@ export async function curateArticle(article) {
         This response MUST be in valid JSON format: { "headline": "...", "description": "...", "caption": "..." }`;
 
     try {
-        // --- NEW AI SYNTAX ---
-        const generativeModel = ai.getGenerativeModel({ model: "gemini-pro" });
-        const result = await generativeModel.generateContent(prompt);
+        // --- CORRECTED AI SYNTAX (v0.2.2) ---
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" }); // Get model
+        const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
-        // ---------------------
+        // ---------------------------------
 
         if (!text) { throw new Error("API response text invalid."); }
 
@@ -74,7 +65,7 @@ export async function curateArticle(article) {
     }
 }
 
-export async function generateSimplePreviewImage(imageUrl, headline, description) {
+async function generateSimplePreviewImage(imageUrl, headline, description) {
     console.log(`[Simple Preview] Starting preview for: ${imageUrl}`);
     try {
         const response = await fetch(imageUrl);
@@ -90,14 +81,19 @@ export async function generateSimplePreviewImage(imageUrl, headline, description
             .png().toBuffer();
         
         const filename = `preview_${Date.now()}.png`;
-        // Use the correct ESM path logic
-        const imagePath = path.join(__dirname, '..', 'public', filename); 
+        const imagePath = path.join(process.cwd(), 'public', filename); 
         await fs.writeFile(imagePath, previewImageBuffer);
         
         console.log(`[Simple Preview] Success: ${imagePath}`);
-        return `/${filename}`; // Return the web-accessible path
+        return `/${filename}`;
     } catch (error) {
         console.error(`[Simple Preview ERROR]`, error.message);
         return '/fallback.png';
     }
 }
+
+// --- EXPORTS (CommonJS Syntax) ---
+module.exports = {
+    curateArticle,
+    generateSimplePreviewImage
+};

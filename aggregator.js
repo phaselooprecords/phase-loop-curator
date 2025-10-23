@@ -1,8 +1,8 @@
-// aggregator.js (ESM Version)
+// aggregator.js (CommonJS Version)
 
-import Parser from 'rss-parser';
-import cron from 'cron';
-import * as db from './database.js';
+const Parser = require('rss-parser');
+const cron = require('cron');
+const db = require('./database.js');
 
 const parser = new Parser({
     customFields: {
@@ -10,11 +10,17 @@ const parser = new Parser({
     }
 });
 
-// Add all your feeds here
 const RSS_FEEDS = [
-    { name: 'Pitchfork News', url: 'https://pitchfork.com/rss/news/' },
+    { name: 'Pitchfork News', url: 'https.pitchfork.com/rss/news/' },
     { name: 'Rolling Stone', url: 'https://www.rollingstone.com/feed/' },
-    // ... other feeds
+    { name: 'NME', url: 'https://www.nme.com/feed' },
+    { name: 'Billboard', url: 'https://www.billboard.com/feed/' },
+    { name: 'Consequence', url: 'https://consequence.net/feed/' },
+    { name: 'Resident Advisor News', url: 'https://ra.co/xml/news.xml' },
+    { name: 'Mixmag', url: 'https://mixmag.net/feed' },
+    { name: 'Spin', url: 'https://www.spin.com/feed/' },
+    { name: 'Kerrang!', url: 'https://www.kerrang.com/feed' },
+    { name: 'Complex Music', url: 'https.www.complex.com/music/feed' }
 ];
 
 async function fetchAndProcessNews() {
@@ -53,11 +59,12 @@ async function fetchAndProcessNews() {
 const NEWS_CRON_PATTERN = '*/30 * * * * *';
 const newsJob = new cron.CronJob(NEWS_CRON_PATTERN, fetchAndProcessNews, null, false, 'UTC');
 
-// --- EXPORTS (ESM Syntax) ---
-export function startScheduler() {
-    newsJob.start();
-    console.log(`[Scheduler] RSS job scheduled to run on pattern: ${NEWS_CRON_PATTERN}`);
-    fetchAndProcessNews();
-}
-
-export const getNews = db.getAllArticles;
+// --- EXPORTS (CommonJS Syntax) ---
+module.exports = {
+    startScheduler: () => {
+        newsJob.start();
+        console.log(`[Scheduler] RSS job scheduled to run on pattern: ${NEWS_CRON_PATTERN}`);
+        fetchAndProcessNews();
+    },
+    getNews: db.getAllArticles
+};
