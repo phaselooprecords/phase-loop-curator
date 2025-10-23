@@ -42,7 +42,7 @@
         /* Simple Preview Styling */
         #simple-preview-image { width: 100%; max-width: 600px; margin: auto; display: block; margin-bottom: 20px; }
         
-        /* Loading Indicator Styling */
+        /* --- NEW: Loading Indicator Styling --- */
         #loading-view { text-align: center; padding: 50px; font-size: 1.2em; color: #ccc; }
         .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top: 4px solid #fff; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -106,38 +106,37 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchNews();
-            // Attach button listeners to their CORRECT IDs
+            // Attach button listeners
             document.getElementById('refresh-images-btn').onclick = () => { currentImagePage++; showImageSelectionUI(); };
-            
-            // --- BUTTON LISTENERS FIXED ---
             document.getElementById('download-final-image-btn').onclick = () => handleDownloadFinalImage();
             document.getElementById('share-preview-btn').onclick = () => handleShare();
-            document.getElementById('copy-caption-btn').onclick = () => handleCopyCaption(); 
-            document.getElementById('back-to-selection-btn').onclick = () => setView('select'); 
+            document.getElementById('copy-caption-btn').onclick = () => handleCopyCaption();
+            // Find the "Back to Selection" button by its class and add the listener
+            document.querySelector('.back-button').onclick = () => setView('select'); 
         });
 
-        // --- UI VIEW HANDLERS ---
+        // --- UI VIEW HANDLERS (UPDATED) ---
         function setView(viewId) {
             document.getElementById('news-list').classList.add('hidden');
-            document.getElementById('loading-view').classList.add('hidden');
+            document.getElementById('loading-view').classList.add('hidden'); // NEW: Hide loading view
             document.getElementById('selection-view').classList.add('hidden');
             document.getElementById('simple-preview-view').classList.add('hidden');
 
             if (viewId === 'list') document.getElementById('news-list').classList.remove('hidden');
-            else if (viewId === 'loading') document.getElementById('loading-view').classList.remove('hidden');
+            else if (viewId === 'loading') document.getElementById('loading-view').classList.remove('hidden'); // NEW: Show loading view
             else if (viewId === 'select') document.getElementById('selection-view').classList.remove('hidden');
             else if (viewId === 'simple-preview') document.getElementById('simple-preview-view').classList.remove('hidden');
         }
 
         // --- STEP 1: Fetch News ---
         async function fetchNews() {
+            // ... (Your working fetchNews code from the file is correct) ...
             const newsListElement = document.getElementById('news-list');
             newsListElement.innerHTML = 'Loading news...';
             try {
                 const response = await fetch('/api/news');
                 if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
                 const articles = await response.json();
-
                 if (!articles || articles.length === 0) { newsListElement.innerHTML = '<p>No news articles found.</p>'; return; }
                 newsListElement.innerHTML = '';
                 articles.forEach(article => {
@@ -154,30 +153,33 @@
             }
         }
 
-        // --- STEP 2: Handle Tap & AI Curation ---
+        // --- STEP 2: Handle Tap & AI Curation (UPDATED) ---
         async function handleArticleTap(article) {
              currentArticleData = article;
-             setView('loading'); // Show loading indicator
+             
+             // --- NEW: Show Loading Indicator ---
+             setView('loading');
              
              try {
                  const response = await fetch('/api/curate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(article) });
                  currentCuratedData = await response.json();
 
-                 if (currentCuratedData.headline === "AI Generation Failed") {
+                 if (currentCuratedData.headline === "AI Failed") {
                     alert('AI text generation FAILED. Check console/API key. Returning to list.');
-                    setView('list'); 
+                    setView('list'); // Go back to news list on failure
                     return;
                  }
 
                  allRelevantImages = currentCuratedData.images || [];
                  currentImagePage = 0; // Reset page count on new article
                  
+                 // Proceed to image selection (this automatically hides the loading view)
                  showImageSelectionUI(); 
 
              } catch (error) {
                  console.error('Error during curation API call:', error);
                  alert('Connection error during curation. Returning to list.');
-                 setView('list'); 
+                 setView('list'); // Go back to news list on network error
              }
          }
 
@@ -220,6 +222,7 @@
 
         // --- STEP 3.5: Call Simple Preview API & Show Simple Preview ---
         async function startSimplePreviewPipeline(imageUrl) {
+            // --- NEW: Clean headline before sending to backend ---
             const headline = (currentCuratedData.headline || "Headline N/A").replace(/^\*\*|\*\*$/g, '');
             const description = currentCuratedData.description;
             try {
@@ -232,7 +235,7 @@
                 setView('simple-preview');
                 document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now();
                 
-                // --- NEW: Inject Caption into Preview Screen AFTER SUCCESSFUL IMAGE GENERATION ---
+                // --- NEW: Inject Caption into Preview Screen ---
                 const finalCaptionForDisplay = (currentCuratedData?.caption || "No caption available.") +
                                               `\n\nNews Source: ${currentCuratedData?.originalSource || 'Unknown'}`;
                 document.getElementById('final-caption-display').innerText = finalCaptionForDisplay;
@@ -242,7 +245,6 @@
         
         // --- Copy Caption Logic ---
         async function handleCopyCaption() {
-            // Get caption from the display element
             const finalCaption = document.getElementById('final-caption-display').innerText;
             if (!finalCaption) { alert("No caption to copy."); return; }
             try {
