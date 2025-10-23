@@ -1,8 +1,7 @@
-// aggregator.js (CommonJS Version)
-
-const Parser = require('rss-parser');
-const cron = require('cron');
-const db = require('./database.js');
+// aggregator.js (ESM Version)
+import Parser from 'rss-parser';
+import cron from 'cron';
+import * as db from './database.js';
 
 const parser = new Parser({
     customFields: {
@@ -53,18 +52,14 @@ async function fetchAndProcessNews() {
     }
     console.log(`Total ${collectedArticles.length} items processed.`);
     console.log('--- News fetch complete ---');
-    return collectedArticles;
 }
 
 const NEWS_CRON_PATTERN = '*/30 * * * * *';
 const newsJob = new cron.CronJob(NEWS_CRON_PATTERN, fetchAndProcessNews, null, false, 'UTC');
 
-// --- EXPORTS (CommonJS Syntax) ---
-module.exports = {
-    startScheduler: () => {
-        newsJob.start();
-        console.log(`[Scheduler] RSS job scheduled to run on pattern: ${NEWS_CRON_PATTERN}`);
-        fetchAndProcessNews();
-    },
-    getNews: db.getAllArticles
-};
+export function startScheduler() {
+    newsJob.start();
+    console.log(`[Scheduler] RSS job scheduled to run on pattern: ${NEWS_CRON_PATTERN}`);
+    fetchAndProcessNews();
+}
+export const getNews = db.getAllArticles;

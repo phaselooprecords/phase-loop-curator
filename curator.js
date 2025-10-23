@@ -1,15 +1,21 @@
-// curator.js (CommonJS Version)
+// curator.js (ESM Version)
+import { config } from 'dotenv';
+import { GoogleGenAI } from '@google/genai';
+import { google } from 'googleapis';
+import path from 'path';
+import sharp from 'sharp';
+import fs from 'fs/promises';
+import fetch from 'node-fetch';
+import { fileURLToPath } from 'url';
+config();
 
-require('dotenv').config();
-const { GoogleGenAI } = require('@google/genai');
-const { google } = require('googleapis');
-const path = require('path');
-const sharp = require('sharp');
-const fs = require('fs/promises');
-const fetch = require('node-fetch');
+// --- ESM FIX for __dirname ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// -----------------------------
 
-// --- API CLIENTS SETUP (v0.2.2 Syntax) ---
-const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY); // Main client
+// --- API CLIENTS SETUP (ESM SYNTAX) ---
+const ai = new GoogleGenAI(process.env.GEMINI_API_KEY);
 const customsearch = google.customsearch('v1');
 const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
@@ -26,7 +32,7 @@ async function searchForRelevantImages(query) {
     } catch (error) { console.error(`[Image Search ERROR]`, error.message); return []; }
 }
 
-async function curateArticle(article) {
+export async function curateArticle(article) {
     const searchQuery = `${article.title} ${article.source}`;
     const relevantImages = await searchForRelevantImages(searchQuery);
     const prompt = `
@@ -36,36 +42,29 @@ async function curateArticle(article) {
         2. SHORT DESCRIPTION (max 40 words).
         3. SOCIAL MEDIA CAPTION (max 100 words). Include #PhaseLoopRecords and mention source (${article.source}).
         NEWS TITLE: "${article.title}"
-        
         This response MUST be in valid JSON format: { "headline": "...", "description": "...", "caption": "..." }`;
 
     try {
-        // --- CORRECTED AI SYNTAX (v0.2.2) ---
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" }); // Get model
+        // --- NEW AI SYNTAX ---
+        const model = ai.getGenerativeModel({ model: "gemini-pro" });
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
-        // ---------------------------------
-
+        // ---------------------
         if (!text) { throw new Error("API response text invalid."); }
-
-        // Clean the text to ensure it's valid JSON
         const jsonText = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const aiResult = JSON.parse(jsonText);
-        
         console.log(`[AI] Successfully generated content for: ${article.title}`);
-        
         aiResult.images = relevantImages;
         aiResult.originalSource = article.source;
         return aiResult;
-
     } catch (error) {
         console.error("[AI ERROR]", error.message);
         return { headline: "AI Failed", description: "Try again.", caption: "Error.", images: relevantImages };
     }
 }
 
-async function generateSimplePreviewImage(imageUrl, headline, description) {
+export async function generateSimplePreviewImage(imageUrl, headline, description) {
     console.log(`[Simple Preview] Starting preview for: ${imageUrl}`);
     try {
         const response = await fetch(imageUrl);
@@ -79,11 +78,9 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
             .resize({ width: 800, height: 800, fit: 'cover' })
             .composite([{ input: Buffer.from(svgOverlay), top: 800 - overlayHeight - 20, left: 0 }])
             .png().toBuffer();
-        
         const filename = `preview_${Date.now()}.png`;
-        const imagePath = path.join(process.cwd(), 'public', filename); 
+        const imagePath = path.join(__dirname, '..', 'public', filename); 
         await fs.writeFile(imagePath, previewImageBuffer);
-        
         console.log(`[Simple Preview] Success: ${imagePath}`);
         return `/${filename}`;
     } catch (error) {
@@ -91,9 +88,3 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         return '/fallback.png';
     }
 }
-
-// --- EXPORTS (CommonJS Syntax) ---
-module.exports = {
-    curateArticle,
-    generateSimplePreviewImage
-};
