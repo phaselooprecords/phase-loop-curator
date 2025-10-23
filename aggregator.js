@@ -1,8 +1,8 @@
-// aggregator.js (CommonJS Version)
+// aggregator.js (ESM Version)
 
-const Parser = require('rss-parser');
-const cron = require('cron');
-const db = require('./database.js');
+import Parser from 'rss-parser';
+import cron from 'cron';
+import * as db from './database.js';
 
 const parser = new Parser({
     customFields: {
@@ -10,6 +10,7 @@ const parser = new Parser({
     }
 });
 
+// Add all your feeds here
 const RSS_FEEDS = [
     { name: 'Pitchfork News', url: 'https://pitchfork.com/rss/news/' },
     { name: 'Rolling Stone', url: 'https://www.rollingstone.com/feed/' },
@@ -52,12 +53,11 @@ async function fetchAndProcessNews() {
 const NEWS_CRON_PATTERN = '*/30 * * * * *';
 const newsJob = new cron.CronJob(NEWS_CRON_PATTERN, fetchAndProcessNews, null, false, 'UTC');
 
-// --- EXPORTS (CommonJS Syntax) ---
-module.exports = {
-    startScheduler: () => {
-        newsJob.start();
-        console.log(`[Scheduler] RSS job scheduled to run on pattern: ${NEWS_CRON_PATTERN}`);
-        fetchAndProcessNews();
-    },
-    getNews: db.getAllArticles
-};
+// --- EXPORTS (ESM Syntax) ---
+export function startScheduler() {
+    newsJob.start();
+    console.log(`[Scheduler] RSS job scheduled to run on pattern: ${NEWS_CRON_PATTERN}`);
+    fetchAndProcessNews();
+}
+
+export const getNews = db.getAllArticles;
