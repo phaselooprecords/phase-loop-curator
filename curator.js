@@ -1,7 +1,7 @@
 // curator.js (NEW REFACTORED VERSION)
 
 require('dotenv').config();
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/genai'); 
 const { google } = require('googleapis');
 const path = require('path');
 const sharp = require('sharp');
@@ -9,7 +9,7 @@ const fs = require('fs/promises');
 const fetch = require('node-fetch');
 
 // --- API CLIENTS SETUP ---
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
 const model = 'gemini-2.5-flash';
 const customsearch = google.customsearch('v1');
 
