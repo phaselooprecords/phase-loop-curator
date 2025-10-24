@@ -8,10 +8,28 @@ const sharp = require('sharp');
 const fs = require('fs/promises');
 const fetch = require('node-fetch');
 
-// --- API CLIENTS SETUP ---
-const ai = new GoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
-const model = 'gemini-2.5-flash';
-const customsearch = google.customsearch('v1');
+// --- API CLIENTS SETUP (Reverted Initialization Method) ---
+let ai; // Declare variable for the AI client
+try {
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is missing from environment variables.");
+    }
+    // !!! REVERTED INITIALIZATION !!!
+    // Use the originally intended way, assuming GoogleGenerativeAI is the correct class name
+    ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); 
+    // ^^^ If this line causes the "not a constructor" error, 
+    //     the import name might still be wrong (e.g., maybe it IS GoogleGenAI?)
+    //     or the package installation is corrupted.
+
+    console.log("[AI Setup] GoogleGenerativeAI client initialization attempted."); 
+} catch (error) {
+    console.error("[AI Setup ERROR] Failed to initialize GoogleGenerativeAI:", error);
+    ai = null; 
+}
+
+const customsearch = google.customsearch('v1'); 
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; 
+const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
 // !!! THIS IS THE FIX FOR THE KEY BUG !!!
 // A Gemini Key is NOT a Google Search Key. You need a separate key for Google Search.
