@@ -29,7 +29,6 @@ const { GoogleGenerativeAI } = require('@google/genai');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); 
 // const model = 'gemini-1.5-flash'; // You define the model later now
 
-const customsearch = google.customsearch('v1');
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; 
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
