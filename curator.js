@@ -37,7 +37,6 @@ try {
     genAI = null; 
 }
 
-const customsearch = google.customsearch('v1'); 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; 
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
