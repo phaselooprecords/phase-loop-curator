@@ -55,9 +55,6 @@ try {
     genAI = null; 
 }
 
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; 
-const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
-
 // --- CORE FUNCTION 1: GENERATE AI TEXT ---
 async function generateAiText(article) {
     // Add a check here in case initialization failed
