@@ -24,7 +24,7 @@ require('dotenv').config();
 // ... (rest of imports: path, sharp, fs, fetch)
 
 // --- API CLIENTS SETUP (REVISED) ---
-const { GoogleGenerativeAI } = require('@google/genai'); // Keep this import
+
 const { google } = require('googleapis');
 
 // !!! REVISED AI CLIENT INITIALIZATION !!!
