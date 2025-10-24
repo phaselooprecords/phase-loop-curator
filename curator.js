@@ -23,17 +23,37 @@ require('dotenv').config();
 const { GoogleGenerativeAI } = require('@google/genai'); 
 // ... (rest of imports: path, sharp, fs, fetch)
 
-// --- API CLIENTS SETUP ---
-// !!! THIS IS THE FIX FOR THE AI ERROR !!!
-// Use the correct constructor: GoogleGenerativeAI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); 
-// const model = 'gemini-1.5-flash'; // You define the model later now
+// --- API CLIENTS SETUP (REVISED) ---
+const { GoogleGenerativeAI } = require('@google/genai'); // Keep this import
+const { google } = require('googleapis');
 
+// !!! REVISED AI CLIENT INITIALIZATION !!!
+let genAI; // Declare variable
+try {
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is missing from environment variables.");
+    }
+    // Instantiate inside a try block
+    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); 
+    console.log("[AI Setup] GoogleGenerativeAI client initialized successfully."); // Add log
+} catch (error) {
+    console.error("[AI Setup ERROR] Failed to initialize GoogleGenerativeAI:", error);
+    // If initialization fails, set genAI to null or handle appropriately
+    // This prevents the generateAiText function from crashing immediately if setup failed.
+    genAI = null; 
+}
+
+const customsearch = google.customsearch('v1'); 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; 
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
-// --- CORE FUNCTION 1: GENERATE AI TEXT (CORRECTED) ---
+// --- CORE FUNCTION 1: GENERATE AI TEXT ---
 async function generateAiText(article) {
+    // Add a check here in case initialization failed
+    if (!genAI) {
+        throw new Error("AI Client not initialized. Check GEMINI_API_KEY and server logs.");
+    }
+    
     const prompt = `
         You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news.
         TASK: Synthesize the news based on the title. Generate:
@@ -43,25 +63,19 @@ async function generateAiText(article) {
         NEWS TITLE: "${article.title}"
         FORMAT RESPONSE STRICTLY AS JSON: { "headline": "...", "description": "...", "caption": "..." }`;
     try {
-        if (!process.env.GEMINI_API_KEY) {
-            throw new Error("GEMINI_API_KEY is not set in environment.");
-        }
-        
-        // Use the genAI instance created above
+        // Use the genAI instance 
         const aiModel = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-flash", // Specify the model here
+            model: "gemini-1.5-flash", 
             generationConfig: { responseMimeType: "application/json" }
         });
         
         const result = await aiModel.generateContent(prompt);
         const response = result.response;
         
-        // Use candidate.content.parts[0].text for Gemini response
         if (!response || !response.candidates || !response.candidates[0].content || !response.candidates[0].content.parts || !response.candidates[0].content.parts[0].text) {
              throw new Error("Invalid AI API response structure.");
         }
         
-        // Extract the JSON text
         const jsonText = response.candidates[0].content.parts[0].text;
         
         const aiContent = JSON.parse(jsonText.trim());
@@ -70,8 +84,7 @@ async function generateAiText(article) {
         return aiContent;
 
     } catch (error) { 
-        console.error("[AI ERROR]", error); // Log the full error
-        // Send a specific error back to the frontend
+        console.error("[AI ERROR]", error); 
         throw new Error(`AI Text Failed: ${error.message}`); 
     }
 }
