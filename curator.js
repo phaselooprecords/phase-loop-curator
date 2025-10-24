@@ -21,12 +21,6 @@ const customsearch = google.customsearch('v1');
 require('dotenv').config();
 // IMPORT THE CORRECT CONSTRUCTOR NAME
 
-// ... (rest of imports: path, sharp, fs, fetch)
-
-// --- API CLIENTS SETUP (REVISED) ---
-
-const { google } = require('googleapis');
-
 // !!! REVISED AI CLIENT INITIALIZATION !!!
 let genAI; // Declare variable
 try {
