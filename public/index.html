@@ -154,35 +154,56 @@
         }
 
         // --- STEP 2: Handle Tap & AI Curation (UPDATED) ---
-        async function handleArticleTap(article) {
-             currentArticleData = article;
-             
-             // --- NEW: Show Loading Indicator ---
-             setView('loading');
-             
-             try {
-                 const response = await fetch('/api/curate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(article) });
-                 currentCuratedData = await response.json();
+async function handleArticleTap(article) {
+    currentArticleData = article;
 
-                 if (currentCuratedData.headline === "AI Failed") {
-                    alert('AI text generation FAILED. Check console/API key. Returning to list.');
-                    setView('list'); // Go back to news list on failure
-                    return;
-                 }
+    // --- NEW: Show Loading Indicator ---
+    setView('loading');
 
-                 allRelevantImages = currentCuratedData.images || [];
-                 currentImagePage = 0; // Reset page count on new article
-                 
-                 // Proceed to image selection (this automatically hides the loading view)
-                 showImageSelectionUI(); 
+    try {
+        const response = await fetch('/api/curate', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify(article) 
+        });
 
-             } catch (error) {
-                 console.error('Error during curation API call:', error);
-                 alert('Connection error during curation. Returning to list.');
-                 setView('list'); // Go back to news list on network error
-             }
-         }
+        // --- THIS IS THE FIX ---
+        // Check if the server responded with an error (e.g., 400 or 500)
+        if (!response.ok) {
+            // Get the specific error message from the server's JSON response
+            const errorData = await response.json();
+            // Throw an error to be caught by the 'catch' block
+            throw new Error(errorData.error || `Server error: ${response.status}`);
+        }
+        // --- END OF FIX ---
 
+        // If response is OK, parse the data
+        currentCuratedData = await response.json();
+
+        // Your existing check (this is fine)
+        if (currentCuratedData.headline === "AI Failed") {
+           alert('AI text generation FAILED. Check console/API key. Returning to list.');
+           setView('list'); // Go back to news list on failure
+           return;
+        }
+
+        allRelevantImages = currentCuratedData.images || [];
+        currentImagePage = 0; // Reset page count on new article
+
+        // Proceed to image selection (this automatically hides the loading view)
+        showImageSelectionUI(); 
+
+    } catch (error) {
+        console.error('Error during curation API call:', error);
+        
+        // This alert will now show the *specific* server error
+        alert(`Error: ${error.message}. Returning to list.`);
+        
+        setView('list'); // Go back to news list on network error
+    }
+}
+
+          
         // --- STEP 3: Show Image Selection UI ---
         function showImageSelectionUI() {
             setView('select');
