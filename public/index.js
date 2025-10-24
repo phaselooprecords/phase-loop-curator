@@ -178,7 +178,7 @@
             }
          }
 
-        // --- NEW FUNCTION: Fetch AI Text ---
+                // --- NEW FUNCTION: Fetch AI Text (ROBUST) ---
         async function fetchAiText(article) {
             try {
                 const response = await fetch('/api/generate-text', { 
@@ -186,19 +186,28 @@
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify(article) // Send the whole article
                 });
+
+                // --- ROBUST ERROR CHECK ---
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+
                 currentCuratedData = await response.json(); // Save to global state
-                
+
                 document.getElementById('preview-headline').innerText = currentCuratedData.headline || "N/A";
                 document.getElementById('preview-description').innerText = currentCuratedData.description || "N/A";
                 document.getElementById('preview-caption-text').innerText = (currentCuratedData.caption || "Caption N/A") + `\n\nNews Source: ${currentCuratedData.originalSource || 'Unknown'}`;
 
             } catch (error) {
                 console.error('Error fetching AI text:', error);
+                // This alert will show the real error
+                alert(`AI Text Failed: ${error.message}`);
                 document.getElementById('preview-headline').innerText = "AI Text Failed.";
             }
         }
 
-        // --- NEW FUNCTION: Fetch Images (*** UPDATED ***) ---
+        // --- NEW FUNCTION: Fetch Images (ROBUST) ---
         async function fetchImages(title, source) {
             const area = document.getElementById('image-selection-area');
             area.innerHTML = "<p>Searching for images...</p>";
@@ -208,15 +217,22 @@
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ title: title, source: source }) // Send title AND source
                 });
+
+                // --- ROBUST ERROR CHECK ---
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+
                 const data = await response.json();
                 const allRelevantImages = data.images || [];
-                
+
                 area.innerHTML = '';
                 if (allRelevantImages.length === 0) {
                      area.innerHTML = "<p>No relevant images found.</p>";
                      return;
                 }
-                
+
                 allRelevantImages.forEach((imageUrl, index) => {
                     const container = document.createElement('div');
                     const img = document.createElement('img');
@@ -229,11 +245,13 @@
 
             } catch (error) {
                 console.error('Error fetching images:', error);
+                // This alert will show the real error
+                alert(`Image Search Failed: ${error.message}`);
                 area.innerHTML = "<p>Image search failed.</p>";
             }
         }
 
-        // --- NEW FUNCTION: Fetch Related Articles (*** UPDATED ***) ---
+        // --- NEW FUNCTION: Fetch Related Articles (ROBUST) ---
         async function fetchRelatedArticles(title, source) {
             const list = document.getElementById('related-articles-list');
             list.innerHTML = "<p>Finding related articles...</p>";
@@ -243,19 +261,26 @@
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ title: title, source: source }) // Send title AND source
                 });
+                
+                // --- ROBUST ERROR CHECK ---
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+
                 const data = await response.json();
                 const relatedArticles = data.relatedArticles || [];
-                
+
                 list.innerHTML = '';
                 if (relatedArticles.length === 0) {
                     list.innerHTML = "<p>No other sources found.</p>";
                     return;
                 }
-                
+
                 relatedArticles.forEach(article => {
                     // Don't show a link to the article we're already looking at
                     if (article.link === currentArticleData.link) return; 
-                    
+
                     const el = document.createElement('div');
                     el.className = 'related-article';
                     el.innerHTML = `<a href="${article.link}" target="_blank">${article.title}</a><p>${article.source}</p>`;
