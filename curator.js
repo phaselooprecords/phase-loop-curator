@@ -20,7 +20,7 @@ const customsearch = google.customsearch('v1');
 // --- Keep these lines at the top ---
 require('dotenv').config();
 // IMPORT THE CORRECT CONSTRUCTOR NAME
-const { GoogleGenerativeAI } = require('@google/genai'); 
+
 // ... (rest of imports: path, sharp, fs, fetch)
 
 // --- API CLIENTS SETUP (REVISED) ---
