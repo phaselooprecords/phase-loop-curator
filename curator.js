@@ -15,10 +15,26 @@ const customsearch = google.customsearch('v1');
 
 // !!! THIS IS THE FIX FOR THE KEY BUG !!!
 // A Gemini Key is NOT a Google Search Key. You need a separate key for Google Search.
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; // Use the correct key
+// curator.js
+
+// --- Keep these lines at the top ---
+require('dotenv').config();
+// IMPORT THE CORRECT CONSTRUCTOR NAME
+const { GoogleGenerativeAI } = require('@google/genai'); 
+const { google } = require('googleapis');
+// ... (rest of imports: path, sharp, fs, fetch)
+
+// --- API CLIENTS SETUP ---
+// !!! THIS IS THE FIX FOR THE AI ERROR !!!
+// Use the correct constructor: GoogleGenerativeAI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); 
+// const model = 'gemini-1.5-flash'; // You define the model later now
+
+const customsearch = google.customsearch('v1');
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; 
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
-// --- CORE FUNCTION 1: GENERATE AI TEXT ---
+// --- CORE FUNCTION 1: GENERATE AI TEXT (CORRECTED) ---
 async function generateAiText(article) {
     const prompt = `
         You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news.
@@ -33,26 +49,30 @@ async function generateAiText(article) {
             throw new Error("GEMINI_API_KEY is not set in environment.");
         }
         
-        const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
+        // Use the genAI instance created above
         const aiModel = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-flash", // Using 1.5-flash, but you can change it
+            model: "gemini-1.5-flash", // Specify the model here
             generationConfig: { responseMimeType: "application/json" }
         });
         
         const result = await aiModel.generateContent(prompt);
         const response = result.response;
         
-        if (!response || !response.text()) {
-            throw new Error("Invalid AI API response.");
+        // Use candidate.content.parts[0].text for Gemini response
+        if (!response || !response.candidates || !response.candidates[0].content || !response.candidates[0].content.parts || !response.candidates[0].content.parts[0].text) {
+             throw new Error("Invalid AI API response structure.");
         }
         
-        const aiContent = JSON.parse(response.text().trim());
+        // Extract the JSON text
+        const jsonText = response.candidates[0].content.parts[0].text;
+        
+        const aiContent = JSON.parse(jsonText.trim());
         console.log(`[AI] Successfully generated content for: ${article.title}`);
         aiContent.originalSource = article.source;
         return aiContent;
 
     } catch (error) { 
-        console.error("[AI ERROR]", error.message); 
+        console.error("[AI ERROR]", error); // Log the full error
         // Send a specific error back to the frontend
         throw new Error(`AI Text Failed: ${error.message}`); 
     }
