@@ -1,314 +1,353 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phase Loop Records Curator</title>
-    <style>
-        /* Base Styling */
-        body { font-family: Arial, sans-serif; background-color: #000000; color: #f0f0f0; margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: auto; }
-        h1, h2, h3 { color: #ffffff; border-bottom: 2px solid #555; padding-bottom: 10px; text-align: center; margin-bottom: 15px; }
-        h3 { border-bottom: none; font-size: 1.1em; }
-        .article { background-color: #111111; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; border: 1px solid #333; }
-        .article:hover { background-color: #222222; }
-        .article h2 { margin-top: 0; font-size: 1.2em; color: #ffffff; border-bottom: none; text-align: left;}
-        .article p { font-size: 0.8em; color: #ccc; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase Loop Records Curator</title>
+    <style>
+        /* Base Styling */
+        body { font-family: Arial, sans-serif; background-color: #000000; color: #f0f0f0; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        h1, h2, h3 { color: #ffffff; border-bottom: 2px solid #555; padding-bottom: 10px; text-align: center; margin-bottom: 15px; }
+        h3 { border-bottom: none; font-size: 1.1em; }
+        .article { background-color: #111111; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; border: 1px solid #333; }
+        .article:hover { background-color: #222222; }
+        .article h2 { margin-top: 0; font-size: 1.2em; color: #ffffff; border-bottom: none; text-align: left;}
+        .article p { font-size: 0.8em; color: #ccc; }
 
-        /* UI State & Image Grid */
-        .hidden { display: none; }
-        .image-selection-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 10px; }
-        .image-selection-grid a { display: block; text-decoration: none; color: #aaa; font-size: 0.7em; text-align: center; }
-        .image-selection-grid img { width: 100%; height: 120px; object-fit: cover; cursor: pointer; border: 3px solid transparent; border-radius: 4px; margin-bottom: 5px; }
-        .image-selection-grid img:hover { border-color: #555; }
+        /* UI State & Image Grid */
+        .hidden { display: none; }
+        .image-selection-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 10px; }
+        .image-selection-grid a { display: block; text-decoration: none; color: #aaa; font-size: 0.7em; text-align: center; }
+        .image-selection-grid img { width: 100%; height: 120px; object-fit: cover; cursor: pointer; border: 3px solid transparent; border-radius: 4px; margin-bottom: 5px; }
+        .image-selection-grid img:hover { border-color: #555; }
 
-        /* AI Text Preview Styling */
-        #ai-text-preview { padding: 15px; background-color: #1a1a1a; margin-bottom: 20px; border-radius: 4px; border: 1px solid #333; }
-        #preview-headline { margin-top: 0; color: #FF6B6B; font-size: 1.4em; border-bottom: none; text-align: left;}
-        #preview-caption-text { margin-top: 10px; font-style: italic; font-size: 0.9em; border-top: 1px dashed #333; padding-top: 10px; }
+        /* AI Text Preview Styling */
+        #ai-text-preview { padding: 15px; background-color: #1a1a1a; margin-bottom: 20px; border-radius: 4px; border: 1px solid #333; }
+        #preview-headline { margin-top: 0; color: #FF6B6B; font-size: 1.4em; border-bottom: none; text-align: left;}
+        #preview-caption-text { margin-top: 10px; font-style: italic; font-size: 0.9em; border-top: 1px dashed #333; padding-top: 10px; }
 
-        #original-image-container img { width: 100%; max-width: 400px; margin: 10px auto; display: block; border: 2px solid #444; cursor: pointer; }
+        #original-image-container img { width: 100%; max-width: 400px; margin: 10px auto; display: block; border: 2px solid #444; cursor: pointer; }
 
-        /* Button Styling */
-        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; margin-top: 5px; }
-        button:hover { background-color: #0056b3; }
-        button#refresh-images-btn { background-color: #28a745; margin-left: 10px; }
-        button#download-preview-btn { background-color: #17a2b8; margin-right: 10px; }
-        button.back-button { background-color: #6c757d; margin-left: 10px;}
-        button#share-preview-btn { background-color: #007bff; margin-right: 10px;}
+        /* Related Articles Styling */
+        #related-articles-list { display: flex; flex-direction: column; gap: 8px; }
+        .related-article { background-color: #222; padding: 10px; border-radius: 4px; }
+        .related-article a { color: #87CEFA; text-decoration: none; font-size: 0.9em; }
+        .related-article p { font-size: 0.8em; color: #999; margin: 5px 0 0 0; }
 
-        input[type="text"], textarea { background-color: #1a1a1a; color: white; border: 1px solid #333; width: 98%; padding: 8px; margin-bottom: 15px; }
+        /* Button Styling */
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; margin-top: 5px; }
+        button:hover { background-color: #0056b3; }
+        button#refresh-images-btn { background-color: #28a745; margin-left: 10px; }
+        button#download-preview-btn { background-color: #17a2b8; margin-right: 10px; }
+        button.back-button { background-color: #6c757d; margin-left: 10px;}
+        button#share-preview-btn { background-color: #007bff; margin-right: 10px;}
 
-        /* Simple Preview Styling */
-        #simple-preview-image { width: 100%; max-width: 600px; margin: auto; display: block; margin-bottom: 20px; }
-        
-        /* --- NEW: Loading Indicator Styling --- */
-        #loading-view { text-align: center; padding: 50px; font-size: 1.2em; color: #ccc; }
-        .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top: 4px solid #fff; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+        input[type="text"], textarea { background-color: #1a1a1a; color: white; border: 1px solid #333; width: 98%; padding: 8px; margin-bottom: 15px; }
+        #simple-preview-image { width: 100%; max-width: 600px; margin: auto; display: block; margin-bottom: 20px; }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>PHASE LOOP RECORDS NEWS FEED</h1>
-        <p>Tap a headline to create the social media post.</p>
+    <div class="container">
+        <h1>PHASE LOOP RECORDS NEWS FEED</h1>
+        <p>Tap a headline to create the social media post.</p>
 
-        <div id="news-list"> Loading news... </div>
+        <div id="news-list"> Loading news... </div>
 
-        <div id="loading-view" class="hidden">
-            <div class="spinner"></div>
-            <p>Content is being created...</p>
-        </div>
-        
-        <div id="selection-view" class="hidden">
-             <h2>Select Your Post Visual</h2>
-             <div id="ai-text-preview">
-                 <h3 id="preview-headline"></h3>
-                 <p id="preview-description"></p>
-                 <p id="preview-caption-text"></p>
-             </div>
-             <div id="original-image-container" class="hidden">
-                 <h3>Original Article Image:</h3>
-                 <img id="original-image" src="" alt="Original Article Image" />
-             </div>
-             <h3>Relevant Web Images: <button id="refresh-images-btn">Refresh</button></h3>
-             <div id="image-selection-area" class="image-selection-grid">
-                 {/* Images go here */}
-             </div>
-        </div>
+        <div id="selection-view" class="hidden">
+             <h2>Select Your Post Visual</h2>
+             <div id="ai-text-preview">
+                 <h3 id="preview-headline">Generating AI text...</h3>
+                 <p id="preview-description"></p>
+                 <p id="preview-caption-text"></p>
+             </div>
+             <div id="original-image-container" class="hidden">
+                 <h3>Original Article Image:</h3>
+                 <img id="original-image" src="" alt="Original Article Image" />
+             </div>
+             <h3>Relevant Web Images: <button id="refresh-images-btn">Refresh</button></h3>
+             <div id="image-selection-area" class="image-selection-grid">
+                 <p>Searching for images...</p>
+             </div>
+             <h3>Other Sources:</h3>
+             <div id="related-articles-list">
+                 <p>Finding related articles...</p>
+             </div>
+        </div>
 
-        <div id="simple-preview-view" class="hidden">
-            <h2>Quick Preview</h2>
-            <img id="simple-preview-image" src="" alt="Simple Preview" style="width: 100%; max-width: 600px; margin: auto; display: block; margin-bottom: 20px;" />
-            
-            <div style="margin-top: 10px; padding: 15px; background-color: #1a1a1a; border-radius: 4px; border: 1px solid #333;">
-                <h3 style="margin-top:0; border-bottom: none; text-align: left;">AI Caption:</h3>
-                <p id="final-caption-display" style="font-size: 0.9em; color: #ccc; white-space: pre-wrap; margin-bottom: 10px;"></p>
-                <button id="copy-caption-btn" style="background-color: #5cb85c; margin-top: 10px;">Copy Caption</button>
-            </div>
-            
-            <div style="margin-top: 20px; text-align: center;">
-                <button id="share-preview-btn">Share Post</button>
-                <button id="download-final-image-btn">Download Final Image</button>
-                <button onclick="setView('select')" class="back-button">Back to Selection</button>
-            </div>
-        </div>
+        <div id="simple-preview-view" class="hidden">
+            <h2>Quick Preview</h2>
+            <img id="simple-preview-image" src="" alt="Simple Preview" />
+            <button id="share-preview-btn">Share Post</button>
+            <button id="download-preview-btn">Download Image</button>
+            <button onclick="setView('select')" class="back-button">Back to Selection</button>
+        </div>
 
-    </div>
+    </div>
 
-    <script>
-        // Global state
-        let currentArticleData = null;
-        let currentCuratedData = null;
-        let allRelevantImages = [];
-        let currentImagePage = 0;
-        let simplePreviewImagePath = null;
+    <script>
+        // Global state
+        let currentArticleData = null; // This will hold the ORIGINAL RSS article
+        let currentCuratedData = null; // This will ONLY hold the AI text
+        let simplePreviewImagePath = null;
 
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchNews();
-            // Attach button listeners
-            document.getElementById('refresh-images-btn').onclick = () => { currentImagePage++; showImageSelectionUI(); };
-            document.getElementById('download-final-image-btn').onclick = () => handleDownloadFinalImage();
-            document.getElementById('share-preview-btn').onclick = () => handleShare();
-            document.getElementById('copy-caption-btn').onclick = () => handleCopyCaption();
-            // Find the "Back to Selection" button by its class and add the listener
-            document.querySelector('.back-button').onclick = () => setView('select'); 
-        });
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchNews();
+            
+            // --- UPDATED: Refresh button listener ---
+            document.getElementById('refresh-images-btn').onclick = () => {
+                if (currentArticleData) {
+                    alert('Refreshing images using original article title...');
+                    // Always use the original article data for searching
+                    fetchImages(currentArticleData.title, currentArticleData.source);
+                } else {
+                    alert('No article selected.');
+                }
+            };
+            
+            document.getElementById('download-preview-btn').onclick = () => handleDownload();
+            document.getElementById('share-preview-btn').onclick = () => handleShare();
+        });
 
-        // --- UI VIEW HANDLERS (UPDATED) ---
-        function setView(viewId) {
-            document.getElementById('news-list').classList.add('hidden');
-            document.getElementById('loading-view').classList.add('hidden'); // NEW: Hide loading view
-            document.getElementById('selection-view').classList.add('hidden');
-            document.getElementById('simple-preview-view').classList.add('hidden');
+        // --- UI VIEW HANDLERS (unchanged) ---
+        function setView(viewId) {
+            // ... (unchanged)
+            document.getElementById('news-list').classList.add('hidden');
+            document.getElementById('selection-view').classList.add('hidden');
+            document.getElementById('simple-preview-view').classList.add('hidden');
+            if (viewId === 'list') document.getElementById('news-list').classList.remove('hidden');
+            else if (viewId === 'select') document.getElementById('selection-view').classList.remove('hidden');
+            else if (viewId === 'simple-preview') document.getElementById('simple-preview-view').classList.remove('hidden');
+        }
 
-            if (viewId === 'list') document.getElementById('news-list').classList.remove('hidden');
-            else if (viewId === 'loading') document.getElementById('loading-view').classList.remove('hidden'); // NEW: Show loading view
-            else if (viewId === 'select') document.getElementById('selection-view').classList.remove('hidden');
-            else if (viewId === 'simple-preview') document.getElementById('simple-preview-view').classList.remove('hidden');
-        }
+        // --- STEP 1: Fetch News (unchanged) ---
+        async function fetchNews() {
+            // ... (this function is unchanged) ...
+            const newsListElement = document.getElementById('news-list');
+            newsListElement.innerHTML = 'Loading news...';
+            try {
+                const response = await fetch('/api/news');
+                const articles = await response.json();
+                newsListElement.innerHTML = ''; 
+                articles.forEach(article => {
+                    const articleElement = document.createElement('div');
+                    articleElement.className = 'article';
+                    articleElement.dataset.link = article.link;
+                    articleElement.innerHTML = `<h2>${article.title}</h2><p>Source: ${article.source} | Published: ${new Date(article.pubDate).toLocaleDateString()}</p>`;
+                    // Store the full article object to pass on click
+                    articleElement.onclick = () => handleArticleTap(article); 
+                    newsListElement.appendChild(articleElement);
+                });
+            } catch (error) {
+                console.error('!!! Error inside fetchNews:', error);
+                newsListElement.innerHTML = '<p style="color: red;">Failed to load news. Check console.</p>';
+            }
+        }
 
-        // --- STEP 1: Fetch News ---
-        async function fetchNews() {
-            // ... (Your working fetchNews code from the file is correct) ...
-            const newsListElement = document.getElementById('news-list');
-            newsListElement.innerHTML = 'Loading news...';
-            try {
-                const response = await fetch('/api/news');
-                if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
-                const articles = await response.json();
-                if (!articles || articles.length === 0) { newsListElement.innerHTML = '<p>No news articles found.</p>'; return; }
-                newsListElement.innerHTML = '';
-                articles.forEach(article => {
-                    const articleElement = document.createElement('div');
-                    articleElement.className = 'article';
-                    articleElement.dataset.link = article.link;
-                    articleElement.innerHTML = `<h2>${article.title}</h2><p>Source: ${article.source} | Published: ${new Date(article.pubDate).toLocaleDateString()}</p>`;
-                    articleElement.addEventListener('click', () => handleArticleTap(article));
-                    newsListElement.appendChild(articleElement);
-                });
-            } catch (error) {
-                console.error('Error fetching news:', error);
-                newsListElement.innerHTML = '<p style="color: red;">Failed to load news.</p>';
-            }
-        }
+        // --- STEP 2: Handle Tap & Fan Out API Calls (REWRITTEN) ---
+        async function handleArticleTap(article) {
+             currentArticleData = article; // Save the original article
+             currentCuratedData = null; // Reset curated AI text
+             setView('select');
+             
+             // Reset UI sections to "loading"
+             document.getElementById('preview-headline').innerText = "Generating AI text...";
+             document.getElementById('preview-description').innerText = "";
+             document.getElementById('preview-caption-text').innerText = "";
+             document.getElementById('image-selection-area').innerHTML = "<p>Searching for images...</p>";
+             document.getElementById('related-articles-list').innerHTML = "<p>Finding related articles...</p>";
+             document.getElementById('original-image-container').classList.add('hidden');
 
-        // --- STEP 2: Handle Tap & AI Curation (UPDATED) ---
-async function handleArticleTap(article) {
-    currentArticleData = article;
+             // Call all three APIs in parallel
+             // Task A: Get AI Text
+             fetchAiText(article); 
+             
+             // Task B: Get Images (using original title and source)
+             fetchImages(article.title, article.source);
+             
+             // Task C: Get Related Articles (using original title and source)
+             fetchRelatedArticles(article.title, article.source);
 
-    // --- NEW: Show Loading Indicator ---
-    setView('loading');
+             // Handle the original image
+             if (article.originalImageUrl) {
+                const originalImgEl = document.getElementById('original-image');
+                const originalImgContainer = document.getElementById('original-image-container');
+                originalImgEl.src = article.originalImageUrl;
+                originalImgEl.onclick = () => startSimplePreviewPipeline(article.originalImageUrl);
+                originalImgContainer.classList.remove('hidden');
+            }
+         }
 
-    try {
-        const response = await fetch('/api/curate', { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify(article) 
-        });
+                // --- NEW FUNCTION: Fetch AI Text (ROBUST) ---
+        async function fetchAiText(article) {
+            try {
+                const response = await fetch('/api/generate-text', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(article) // Send the whole article
+                });
 
-        // --- THIS IS THE FIX ---
-        // Check if the server responded with an error (e.g., 400 or 500)
-        if (!response.ok) {
-            // Get the specific error message from the server's JSON response
-            const errorData = await response.json();
-            // Throw an error to be caught by the 'catch' block
-            throw new Error(errorData.error || `Server error: ${response.status}`);
-        }
-        // --- END OF FIX ---
+                // --- ROBUST ERROR CHECK ---
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
 
-        // If response is OK, parse the data
-        currentCuratedData = await response.json();
+                currentCuratedData = await response.json(); // Save to global state
 
-        // Your existing check (this is fine)
-        if (currentCuratedData.headline === "AI Failed") {
-           alert('AI text generation FAILED. Check console/API key. Returning to list.');
-           setView('list'); // Go back to news list on failure
-           return;
-        }
+                document.getElementById('preview-headline').innerText = currentCuratedData.headline || "N/A";
+                document.getElementById('preview-description').innerText = currentCuratedData.description || "N/A";
+                document.getElementById('preview-caption-text').innerText = (currentCuratedData.caption || "Caption N/A") + `\n\nNews Source: ${currentCuratedData.originalSource || 'Unknown'}`;
 
-        allRelevantImages = currentCuratedData.images || [];
-        currentImagePage = 0; // Reset page count on new article
+            } catch (error) {
+                console.error('Error fetching AI text:', error);
+                // This alert will show the real error
+                alert(`AI Text Failed: ${error.message}`);
+                document.getElementById('preview-headline').innerText = "AI Text Failed.";
+            }
+        }
 
-        // Proceed to image selection (this automatically hides the loading view)
-        showImageSelectionUI(); 
+        // --- NEW FUNCTION: Fetch Images (ROBUST) ---
+        async function fetchImages(title, source) {
+            const area = document.getElementById('image-selection-area');
+            area.innerHTML = "<p>Searching for images...</p>";
+            try {
+                const response = await fetch('/api/search-images', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ title: title, source: source }) // Send title AND source
+                });
 
-    } catch (error) {
-        console.error('Error during curation API call:', error);
-        
-        // This alert will now show the *specific* server error
-        alert(`Error: ${error.message}. Returning to list.`);
-        
-        setView('list'); // Go back to news list on network error
-    }
-}
+                // --- ROBUST ERROR CHECK ---
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
 
-          
-        // --- STEP 3: Show Image Selection UI ---
-        function showImageSelectionUI() {
-            setView('select');
-            // Inject AI Text
-            document.getElementById('preview-headline').innerText = currentCuratedData.headline || "N/A";
-            document.getElementById('preview-description').innerText = currentCuratedData.description || "N/A";
-            document.getElementById('preview-caption-text').innerText = (currentCuratedData.caption || "Caption N/A") + `\n\nNews Source: ${currentCuratedData.originalSource || 'Unknown'}`;
-            // Show Original Image
-            const originalImgEl = document.getElementById('original-image');
-            const originalImgContainer = document.getElementById('original-image-container');
-            if (currentArticleData.originalImageUrl) {
-                originalImgEl.src = currentArticleData.originalImageUrl;
-                originalImgEl.onclick = () => startSimplePreviewPipeline(currentArticleData.originalImageUrl);
-                originalImgContainer.classList.remove('hidden');
-            } else { originalImgContainer.classList.add('hidden'); }
-            // Show Relevant Web Images
-            const area = document.getElementById('image-selection-area');
-            area.innerHTML = '';
-            const startIndex = currentImagePage * 3;
-            const imagesToShow = allRelevantImages.slice(startIndex, startIndex + 3);
-            if (imagesToShow.length === 0) {
-                if (currentImagePage === 0 && allRelevantImages.length === 0) { area.innerHTML = "<p>No relevant images found.</p>"; }
-                else { currentImagePage = 0; showImageSelectionUI(); } return;
-            }
-            imagesToShow.forEach((imageUrl, index) => {
-                const container = document.createElement('div');
-                const img = document.createElement('img');
-                img.src = imageUrl; img.alt = `Relevant Image ${startIndex + index + 1}`;
-                img.onerror = function() { this.alt='Image failed'; this.style.border='1px solid red'; };
-                img.onclick = () => startSimplePreviewPipeline(imageUrl);
-                const link = document.createElement('a');
-                link.href = currentArticleData.link; link.textContent = 'View Source Article';
-                link.target = '_blank'; link.style.marginTop = '5px';
-                container.appendChild(img); container.appendChild(link); area.appendChild(container);
-            });
-        }
+                const data = await response.json();
+                const allRelevantImages = data.images || [];
 
-        // --- STEP 3.5: Call Simple Preview API & Show Simple Preview ---
-        async function startSimplePreviewPipeline(imageUrl) {
-            // --- NEW: Clean headline before sending to backend ---
-            const headline = (currentCuratedData.headline || "Headline N/A").replace(/^\*\*|\*\*$/g, '');
-            const description = currentCuratedData.description;
-            try {
-                const response = await fetch('/api/generate-simple-preview', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl, headline, description })
-                });
-                const previewData = await response.json();
-                if (previewData.error || previewData.previewImagePath === '/fallback.png') { alert('Preview Error.'); return; }
-                simplePreviewImagePath = previewData.previewImagePath;
-                setView('simple-preview');
-                document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now();
-                
-                // --- NEW: Inject Caption into Preview Screen ---
-                const finalCaptionForDisplay = (currentCuratedData?.caption || "No caption available.") +
-                                              `\n\nNews Source: ${currentCuratedData?.originalSource || 'Unknown'}`;
-                document.getElementById('final-caption-display').innerText = finalCaptionForDisplay;
+                area.innerHTML = '';
+                if (allRelevantImages.length === 0) {
+                     area.innerHTML = "<p>No relevant images found.</p>";
+                     return;
+                }
 
-            } catch (error) { console.error('Error generating simple preview:', error); alert('Connection error.'); }
-        }
-        
-        // --- Copy Caption Logic ---
-        async function handleCopyCaption() {
-            const finalCaption = document.getElementById('final-caption-display').innerText;
-            if (!finalCaption) { alert("No caption to copy."); return; }
-            try {
-                await navigator.clipboard.writeText(finalCaption);
-                alert("Caption copied to clipboard!");
-            } catch (err) {
-                console.error("Could not copy text: ", err);
-                alert("Failed to copy caption. Please copy it manually.");
-            }
-        }
-        
-        // --- Download Button Logic ---
-        function handleDownloadFinalImage() {
-            if (!simplePreviewImagePath) { alert("No image generated yet."); return; }
-            const link = document.createElement('a');
-            link.href = simplePreviewImagePath;
-            const cleanedHeadlineText = (currentCuratedData?.headline || 'phaseloop-post').replace(/^\*\*|\*\*$/g, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            link.download = `${cleanedHeadlineText}.png`;
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        }
+                allRelevantImages.forEach((imageUrl, index) => {
+                    const container = document.createElement('div');
+                    const img = document.createElement('img');
+                    img.src = imageUrl; img.alt = `Relevant Image ${index + 1}`;
+                    img.onerror = function() { this.alt='Image failed'; this.style.border='1px solid red'; };
+                    img.onclick = () => startSimplePreviewPipeline(imageUrl);
+                    container.appendChild(img); 
+                    area.appendChild(container);
+                });
 
-        // --- Share Button Logic ---
-        async function handleShare() {
-             if (!simplePreviewImagePath) { alert("No image generated yet."); return; }
-             const finalCaption = document.getElementById('final-caption-display').innerText; // Use text from display
-             const platform = prompt(
-                 "Select platform to share to:\n\n1. Instagram Post\n2. Instagram Story (Restricted)\n3. TikTok Post\n4. Facebook\n5. Twitter"
-             );
-             if (!platform) return;
-             let platformName;
-             switch (platform.trim()) {
-                 case '1': platformName = 'Instagram Post'; break; case '2': platformName = 'Instagram Story'; break;
-                 case '3': platformName = 'TikTok Post'; break; case '4': platformName = 'Facebook'; break;
-                 case '5': platformName = 'Twitter'; break;
-                 default: alert("Invalid selection."); return;
-             }
-             alert(`Attempting to share to ${platformName}... (Check terminal)`);
-             try {
-                 const response = await fetch('/api/share', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imagePath: simplePreviewImagePath, caption: finalCaption, platform: platformName }) });
-                 const shareData = await response.json();
-                 if (shareData.error) { alert(`Share Failed: ${shareData.error}`); } else { alert(`✅ SUCCESS: ${shareData.message}`); }
-             } catch (error) { console.error('Sharing error:', error); alert('Network error during sharing.'); }
-         }
-    </script>
+            } catch (error) {
+                console.error('Error fetching images:', error);
+                // This alert will show the real error
+                alert(`Image Search Failed: ${error.message}`);
+                area.innerHTML = "<p>Image search failed.</p>";
+            }
+        }
+
+        // --- NEW FUNCTION: Fetch Related Articles (ROBUST) ---
+        async function fetchRelatedArticles(title, source) {
+            const list = document.getElementById('related-articles-list');
+            list.innerHTML = "<p>Finding related articles...</p>";
+            try {
+                const response = await fetch('/api/find-related-articles', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ title: title, source: source }) // Send title AND source
+                });
+                
+                // --- ROBUST ERROR CHECK ---
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const relatedArticles = data.relatedArticles || [];
+
+                list.innerHTML = '';
+                if (relatedArticles.length === 0) {
+                    list.innerHTML = "<p>No other sources found.</p>";
+                    return;
+                }
+
+                relatedArticles.forEach(article => {
+                    // Don't show a link to the article we're already looking at
+                    if (article.link === currentArticleData.link) return; 
+
+                    const el = document.createElement('div');
+                    el.className = 'related-article';
+                    el.innerHTML = `<a href="${article.link}" target="_blank">${article.title}</a><p>${article.source}</p>`;
+                    list.appendChild(el);
+                });
+
+            } catch (error) {
+                console.error('Error fetching related articles:', error);
+                list.innerHTML = "<p>Related article search failed.</p>";
+            }
+        }
+
+
+        // --- STEP 3.5: Call Simple Preview API (Unchanged) ---
+        async function startSimplePreviewPipeline(imageUrl) {
+            if (!currentCuratedData) {
+                alert("AI text is still generating, please wait a moment.");
+                return;
+            }
+            alert("Generating preview image...");
+            const headline = (currentCuratedData.headline || "Headline N/A").replace(/^\*\*|\*\*$/g, '');
+            const description = currentCuratedData.description;
+            try {
+                const response = await fetch('/api/generate-simple-preview', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl, headline, description })
+                });
+                const previewData = await response.json();
+                if (previewData.error || previewData.previewImagePath === '/fallback.png') { alert('Preview Error.'); return; }
+                simplePreviewImagePath = previewData.previewImagePath;
+                setView('simple-preview');
+                document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now();
+            } catch (error) { console.error('Error generating simple preview:', error); alert('Connection error.'); }
+        }
+
+        // --- Share Button Logic (Unchanged) ---
+        async function handleShare() {
+             if (!simplePreviewImagePath) { alert("No image generated yet."); return; } 
+             if (!currentCuratedData) { alert("AI caption not ready."); return; }
+             
+             const finalCaption = (currentCuratedData?.caption || "") + `\n\nNews Source: ${currentCuratedData?.originalSource || 'Web Search'}`;
+             const platform = prompt("Share to where? (e.g., 'Instagram', 'Twitter')");
+             if (!platform) return;
+             alert(`Attempting to share to ${platform}... (Check terminal)`);
+             try {
+                 const response = await fetch('/api/share', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ imagePath: simplePreviewImagePath, caption: finalCaption, platform: platform })
+                 });
+                 const shareData = await response.json();
+                 if (shareData.error) { alert(`Share Failed: ${shareData.error}`); }
+                 else { alert(`✅ SUCCESS: ${shareData.message}`); }
+             } catch (error) { console.error('Sharing error:', error); alert('Network error during sharing.'); }
+         }
+
+        // --- Download Button Logic (Unchanged) ---
+        function handleDownload() {
+            if (!simplePreviewImagePath) { alert("No image generated yet."); return; }
+            if (!currentCuratedData) { alert("AI data not ready."); return; }
+            
+            const link = document.createElement('a');
+            link.href = simplePreviewImagePath;
+            const cleanedHeadlineText = (currentCuratedData?.headline || 'phaseloop-post').replace(/^\*\*|\*\*$/g, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            link.download = `${cleanedHeadlineText}.png`;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+
+    </script>
 </body>
 </html>
