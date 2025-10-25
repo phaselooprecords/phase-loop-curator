@@ -9,61 +9,53 @@ const sharp = require('sharp');
 const fs = require('fs/promises');
 const fetch = require('node-fetch');
 
-// --- API CLIENTS SETUP (Reverted Initialization Method) ---
-let ai; // Declare variable for the AI client
-console.log("--- Attempting AI Client Initialization ---");
-console.log("GEMINI_API_KEY seen by server:", process.env.GEMINI_API_KEY ? `Key of length ${process.env.GEMINI_API_KEY.length}` : "UNDEFINED or EMPTY");
+// --- API CLIENTS SETUP (with Full Debugging) ---
+console.log("--- Initializing API Clients ---");
+
+// Debug Log 1: Gemini
+console.log("GEMINI_API_KEY seen:", 
+    process.env.GEMINI_API_KEY ? `Key of length ${process.env.GEMINI_API_KEY.length}` : "!!! UNDEFINED or EMPTY !!!"
+);
+
+// Debug Log 2: Google API Key
+console.log("GOOGLE_API_KEY seen:", 
+    process.env.GOOGLE_API_KEY ? `Key of length ${process.env.GOOGLE_API_KEY.length}` : "!!! UNDEFINED or EMPTY !!!"
+);
+
+// Debug Log 3: Google Search CX
+console.log("GOOGLE_SEARCH_CX seen:", 
+    process.env.GOOGLE_SEARCH_CX ? `ID of length ${process.env.GOOGLE_SEARCH_CX.length}` : "!!! UNDEFINED or EMPTY !!!"
+);
+
+let ai; 
 try {
     if (!process.env.GEMINI_API_KEY) {
         throw new Error("GEMINI_API_KEY is missing from environment variables.");
     }
-    // Use the originally intended way, assuming GoogleGenerativeAI is the correct class name
-     ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    // ^^^ If this line causes the "not a constructor" error, 
-    //     the import name might still be wrong (e.g., maybe it IS GoogleGenAI?)
-    //     or the package installation is corrupted.
-
-    console.log("[AI Setup] GoogleGenerativeAI client initialization attempted."); 
+    ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); 
+    console.log("[AI Setup] GoogleGenerativeAI client initialization SUCCESSFUL."); 
 } catch (error) {
     console.error("[AI Setup ERROR] Failed to initialize GoogleGenerativeAI:", error);
     ai = null; 
 }
 
 const customsearch = google.customsearch('v1'); 
+
+// These constants are now defined INSIDE the function that uses them,
+// which is a safer pattern, but we'll leave them here for now
+// as long as they are NOT duplicated.
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; 
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
-// !!! THIS IS THE FIX FOR THE KEY BUG !!!
-// A Gemini Key is NOT a Google Search Key. You need a separate key for Google Search.
-// curator.js
-
-// --- Keep these lines at the top ---
-require('dotenv').config();
-// IMPORT THE CORRECT CONSTRUCTOR NAME
-
-// !!! REVISED AI CLIENT INITIALIZATION !!!
-let genAI; // Declare variable
-try {
-    if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY is missing from environment variables.");
-    }
-    // Instantiate inside a try block
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); 
-    console.log("[AI Setup] GoogleGenerativeAI client initialized successfully."); // Add log
-} catch (error) {
-    console.error("[AI Setup ERROR] Failed to initialize GoogleGenerativeAI:", error);
-    // If initialization fails, set genAI to null or handle appropriately
-    // This prevents the generateAiText function from crashing immediately if setup failed.
-    genAI = null; 
-}
+console.log("--- API Client Setup Complete ---");
 
 // --- CORE FUNCTION 1: GENERATE AI TEXT ---
 async function generateAiText(article) {
-    // Add a check here in case initialization failed
-    if (!genAI) {
-        throw new Error("AI Client not initialized. Check GEMINI_API_KEY and server logs.");
+    if (!ai) { 
+        // This error is now expected if the setup log above failed
+        throw new Error("AI Client not initialized. Check GEMINI_API_KEY and server startup logs.");
     }
-    
+
     const prompt = `
         You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news.
         TASK: Synthesize the news based on the title. Generate:
@@ -73,21 +65,20 @@ async function generateAiText(article) {
         NEWS TITLE: "${article.title}"
         FORMAT RESPONSE STRICTLY AS JSON: { "headline": "...", "description": "...", "caption": "..." }`;
     try {
-        // Use the genAI instance 
-        const aiModel = genAI.getGenerativeModel({ 
+        const aiModel = ai.getGenerativeModel({ 
             model: "gemini-1.5-flash", 
             generationConfig: { responseMimeType: "application/json" }
         });
-        
+
         const result = await aiModel.generateContent(prompt);
         const response = result.response;
-        
+
         if (!response || !response.candidates || !response.candidates[0].content || !response.candidates[0].content.parts || !response.candidates[0].content.parts[0].text) {
              throw new Error("Invalid AI API response structure.");
         }
-        
+
         const jsonText = response.candidates[0].content.parts[0].text;
-        
+
         const aiContent = JSON.parse(jsonText.trim());
         console.log(`[AI] Successfully generated content for: ${article.title}`);
         aiContent.originalSource = article.source;
@@ -95,6 +86,7 @@ async function generateAiText(article) {
 
     } catch (error) { 
         console.error("[AI ERROR]", error); 
+        // Pass the specific Google error message to the front-end
         throw new Error(`AI Text Failed: ${error.message}`); 
     }
 }
@@ -104,12 +96,13 @@ async function searchForRelevantImages(title, source) {
     const query = `${title} ${source}`;
     console.log(`[Image Search] Searching for: ${query}`);
     try {
-        if (!GOOGLE_SEARCH_CX || !GOOGLE_API_KEY) { 
+        // Re-check the variables *inside* the function for absolute certainty
+        if (!process.env.GOOGLE_SEARCH_CX || !process.env.GOOGLE_API_KEY) { 
             throw new Error("Google Search CX or API Key missing in environment."); 
         }
         const response = await customsearch.cse.list({ 
-            auth: GOOGLE_API_KEY, 
-            cx: GOOGLE_SEARCH_CX, 
+            auth: process.env.GOOGLE_API_KEY, // Use process.env directly
+            cx: process.env.GOOGLE_SEARCH_CX,   // Use process.env directly
             q: query, 
             searchType: 'image', 
             num: 9, 
@@ -122,8 +115,8 @@ async function searchForRelevantImages(title, source) {
         console.log(`[Image Search] Found ${imageUrls.length} URLs.`);
         return imageUrls;
     } catch (error) { 
-        console.error(`[Image Search ERROR]`, error.message); 
-        // Send a specific error back to the frontend
+        console.error(`[Image Search ERROR]`, error); // Log the full error
+        // Pass the specific Google error message to the front-end
         throw new Error(`Image Search Failed: ${error.message}`);
     }
 }
