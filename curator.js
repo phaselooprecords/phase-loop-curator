@@ -1,7 +1,7 @@
 // curator.js (NEW REFACTORED VERSION)
 
 require('dotenv').config();
-const { GoogleGenAI } = require('@google/genai'); // Try WITHOUT "Generative"
+const { GoogleGenerativeAI } = require('@google/genai');
 const GoogleGenerativeAI = GoogleAI.GoogleGenerativeAI; // Access the class from the object
 const { google } = require('googleapis');
 const path = require('path');
@@ -11,26 +11,21 @@ const fetch = require('node-fetch');
 
 // --- API CLIENTS SETUP (Reverted Initialization Method) ---
 let ai; // Declare variable for the AI client
-
-// !!! ADD THIS LOGGING !!!
 console.log("--- Attempting AI Client Initialization ---");
 console.log("GEMINI_API_KEY seen by server:", process.env.GEMINI_API_KEY ? `Key of length ${process.env.GEMINI_API_KEY.length}` : "UNDEFINED or EMPTY");
-// !!!!!!!!!!!!!!!!!!!!!!!!!
-
 try {
     if (!process.env.GEMINI_API_KEY) {
         throw new Error("GEMINI_API_KEY is missing from environment variables.");
     }
-    // !!! REVERTED INITIALIZATION !!!
     // Use the originally intended way, assuming GoogleGenerativeAI is the correct class name
-     ai = new GoogleGenAI(process.env.GEMINI_API_KEY); // Try WITHOUT "Generative"
+     ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     // ^^^ If this line causes the "not a constructor" error, 
     //     the import name might still be wrong (e.g., maybe it IS GoogleGenAI?)
     //     or the package installation is corrupted.
 
     console.log("[AI Setup] GoogleGenerativeAI client initialization attempted."); 
 } catch (error) {
-    console.error("[AI Setup ERROR] Failed to initialize GoogleGenAI:", error); // Match name
+    console.error("[AI Setup ERROR] Failed to initialize GoogleGenerativeAI:", error);
     ai = null; 
 }
 
