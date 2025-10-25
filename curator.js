@@ -2,7 +2,6 @@
 
 require('dotenv').config();
 const { GoogleGenerativeAI } = require('@google/genai');
-const GoogleGenerativeAI = GoogleAI.GoogleGenerativeAI; // Access the class from the object
 const { google } = require('googleapis');
 const path = require('path');
 const sharp = require('sharp');
