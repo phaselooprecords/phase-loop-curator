@@ -1,7 +1,8 @@
 // curator.js (NEW REFACTORED VERSION)
 
 require('dotenv').config();
-const { GoogleGenerativeAI } = require('@google/genai');
+const genaiPackage = require('@google/genai');
+const GoogleGenerativeAI = genaiPackage.GoogleGenerativeAI;
 const { google } = require('googleapis');
 const path = require('path');
 const sharp = require('sharp');
