@@ -13,18 +13,18 @@ const db = require('./database');
 
 // aggregator.js (EXPANDED RSS FEEDS)
 
-// --- RSS FEED CONFIGURATION (UPDATED) ---
+// --- RSS FEED CONFIGURATION ---
 const RSS_FEEDS = [
     { name: 'Pitchfork News', url: 'https://pitchfork.com/rss/news/' },
     { name: 'Rolling Stone', url: 'https://www.rollingstone.com/feed/' },
     { name: 'NME', url: 'https://www.nme.com/feed' },
     { name: 'Billboard', url: 'https://www.billboard.com/feed/' },
     { name: 'Consequence', url: 'https://consequence.net/feed/' },
-    { name: 'Resident Advisor News', url: 'https://ra.co/news/rss' }, // <-- Corrected URL
-    { name: 'Mixmag', url: 'https://mixmag.net/rss.xml' }, // <-- Corrected URL
+    { name: 'Resident Advisor News', url: 'https://ra.co/xml/news.xml' },
+    { name: 'Mixmag', url: 'https://mixmag.net/feed' },
     { name: 'Spin', url: 'https://www.spin.com/feed/' },
-    { name: 'Kerrang!', url: 'https://www.kerrang.com/rss' }, // <-- Corrected URL
-    { name: 'Complex Music', url: 'https://www.complex.com/feeds/channels/music' } // <-- Corrected URL
+    { name: 'Kerrang!', url: 'https://www.kerrang.com/feed' },
+    { name: 'Complex Music', url: 'https://www.complex.com/music/feed' }
 ];
 
 
