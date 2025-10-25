@@ -10,6 +10,12 @@ const fetch = require('node-fetch');
 
 // --- API CLIENTS SETUP (Reverted Initialization Method) ---
 let ai; // Declare variable for the AI client
+
+// !!! ADD THIS LOGGING !!!
+console.log("--- Attempting AI Client Initialization ---");
+console.log("GEMINI_API_KEY seen by server:", process.env.GEMINI_API_KEY ? `Key of length ${process.env.GEMINI_API_KEY.length}` : "UNDEFINED or EMPTY");
+// !!!!!!!!!!!!!!!!!!!!!!!!!
+
 try {
     if (!process.env.GEMINI_API_KEY) {
         throw new Error("GEMINI_API_KEY is missing from environment variables.");
