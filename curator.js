@@ -1,7 +1,7 @@
 // curator.js (NEW REFACTORED VERSION)
 
 require('dotenv').config();
-const GoogleAI = require('@google/genai'); // Import the whole package object
+const { GoogleGenAI } = require('@google/genai'); // Try WITHOUT "Generative"
 const GoogleGenerativeAI = GoogleAI.GoogleGenerativeAI; // Access the class from the object
 const { google } = require('googleapis');
 const path = require('path');
@@ -23,14 +23,14 @@ try {
     }
     // !!! REVERTED INITIALIZATION !!!
     // Use the originally intended way, assuming GoogleGenerativeAI is the correct class name
-    ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); 
+     ai = new GoogleGenAI(process.env.GEMINI_API_KEY); // Try WITHOUT "Generative"
     // ^^^ If this line causes the "not a constructor" error, 
     //     the import name might still be wrong (e.g., maybe it IS GoogleGenAI?)
     //     or the package installation is corrupted.
 
     console.log("[AI Setup] GoogleGenerativeAI client initialization attempted."); 
 } catch (error) {
-    console.error("[AI Setup ERROR] Failed to initialize GoogleGenerativeAI:", error);
+    console.error("[AI Setup ERROR] Failed to initialize GoogleGenAI:", error); // Match name
     ai = null; 
 }
 
