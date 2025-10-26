@@ -1,4 +1,4 @@
-// curator.js (UPDATED with larger font sizes for SVG text)
+// curator.js (UPDATED with text wrapping for SVG overlay)
 
 require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
@@ -33,9 +33,37 @@ function escapeXml(unsafe) {
     });
 }
 
+// --- NEW HELPER FUNCTION: Wrap text for SVG ---
+// Simple approximation: breaks text based on character count estimate
+function wrapText(text, maxCharsPerLine) {
+    if (!text) return ['']; // Handle empty input
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+
+    words.forEach(word => {
+        // Check if adding the next word exceeds the limit
+        if ((currentLine + word).length > maxCharsPerLine) {
+            // Push the current line and start a new one
+            lines.push(currentLine.trim());
+            currentLine = word + ' ';
+        } else {
+            // Add the word to the current line
+            currentLine += word + ' ';
+        }
+    });
+
+    // Add the last line
+    lines.push(currentLine.trim());
+
+    // Limit to a maximum of 2 lines for simplicity in the overlay
+    return lines.slice(0, 2);
+}
+
+
 // --- API FUNCTION 1: GENERATE AI TEXT (Unchanged) ---
 async function generateAiText(article) {
-    // ... (This function remains the same as before)
+    // ... (This function remains the same as before) ...
     const prompt = `
         You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news.
         TASK: Synthesize the news based on the title. Generate:
@@ -60,7 +88,7 @@ async function generateAiText(article) {
 
 // --- API FUNCTION 2: SEARCH FOR IMAGES (Unchanged) ---
 async function searchForRelevantImages(title, source) {
-    // ... (This function remains the same as before)
+    // ... (This function remains the same as before) ...
     const query = `${title} ${source}`;
     console.log(`[Image Search] Searching for: ${query}`);
     try {
@@ -77,7 +105,7 @@ async function searchForRelevantImages(title, source) {
 
 // --- API FUNCTION 3: FIND RELATED WEB ARTICLES (Unchanged) ---
 async function findRelatedWebArticles(title, source) {
-    // ... (This function remains the same as before)
+    // ... (This function remains the same as before) ...
      const query = `${title} ${source}`;
     console.log(`[Web Search] Searching for: ${query}`);
     try {
@@ -93,7 +121,7 @@ async function findRelatedWebArticles(title, source) {
 }
 
 
-// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (*** UPDATED FONT SIZES ***) ---
+// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (*** UPDATED FOR TEXT WRAPPING ***) ---
 async function generateSimplePreviewImage(imageUrl, headline, description) {
     console.log(`[Simple Preview] Starting preview generation.`);
     console.log(`[Simple Preview] Image URL: ${imageUrl}`);
@@ -113,32 +141,72 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         const imageBuffer = await response.buffer();
         console.log(`[Simple Preview] Image fetched successfully.`);
 
-        // Extract and escape the first sentence
-        const firstSentenceRaw = descText.split(/[.!?]/)[0];
-        const firstSentence = escapeXml(firstSentenceRaw ? firstSentenceRaw.trim() + '.' : '');
-        console.log(`[Simple Preview] Escaped First Sentence: ${firstSentence}`);
-
-        // Clean and escape the headline
+        // --- Text Preparation ---
+        // Clean headline and wrap (approx. 40 chars for 28px font)
         const cleanedHeadlineRaw = headlineText.replace(/^\*\*|\*\*$/g, '').trim();
-        const cleanedHeadline = escapeXml(cleanedHeadlineRaw);
-        console.log(`[Simple Preview] Escaped Headline: ${cleanedHeadline}`);
+        const headlineLines = wrapText(cleanedHeadlineRaw, 40); // Wrap headline
+        const escapedHeadlineLines = headlineLines.map(line => escapeXml(line));
+        console.log(`[Simple Preview] Escaped Headline Lines:`, escapedHeadlineLines);
 
-        const overlayHeight = 110; // Increased height slightly for bigger fonts
-        // *** INCREASED FONT SIZES HERE ***
+        // Extract first sentence, wrap (approx. 80 chars for 18px font), and escape
+        const firstSentenceRaw = descText.split(/[.!?]/)[0];
+        const fullFirstSentence = firstSentenceRaw ? firstSentenceRaw.trim() + '.' : '';
+        const sentenceLines = wrapText(fullFirstSentence, 80); // Wrap sentence
+        const escapedSentenceLines = sentenceLines.map(line => escapeXml(line));
+        console.log(`[Simple Preview] Escaped Sentence Lines:`, escapedSentenceLines);
+        // --- End Text Preparation ---
+
+
+        // --- SVG Generation ---
+        const headlineFontSize = 28;
+        const sentenceFontSize = 18;
+        const lineSpacing = 1.2; // Multiplier for line height
+        const padding = 15; // Padding inside the box
+
+        // Calculate needed height based on lines
+        const headlineHeight = escapedHeadlineLines.length * headlineFontSize * lineSpacing;
+        const sentenceHeight = escapedSentenceLines.length * sentenceFontSize * lineSpacing;
+        const totalTextHeight = headlineHeight + sentenceHeight + padding; // Add space between sections
+        const overlayHeight = Math.max(110, totalTextHeight + padding * 2); // Ensure min height, add top/bottom padding
+
+        // Generate TSPAN elements for headline
+        let headlineTspans = '';
+        escapedHeadlineLines.forEach((line, index) => {
+            const dy = index === 0 ? 0 : headlineFontSize * lineSpacing; // Use dy for subsequent lines
+            headlineTspans += `<tspan x="${padding}" dy="${dy}em">${line}</tspan>`;
+        });
+
+        // Generate TSPAN elements for sentence
+        let sentenceTspans = '';
+        escapedSentenceLines.forEach((line, index) => {
+            const dy = index === 0 ? 0 : sentenceFontSize * lineSpacing;
+            sentenceTspans += `<tspan x="${padding}" dy="${dy}em">${line}</tspan>`;
+        });
+
+        // Calculate starting Y positions
+        const headlineStartY = padding + headlineFontSize; // Start Y for first line of headline
+        const sentenceStartY = headlineStartY + headlineHeight + padding / 2; // Start Y for first line of sentence
+
         const svgOverlay = `<svg width="800" height="${overlayHeight}">
             <rect x="0" y="0" width="800" height="${overlayHeight}" fill="#000000" opacity="0.7"/>
-            {/* Headline font size increased to 28px, adjusted y position */}
-            <text x="15" y="45" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 28px; font-weight: 900;" fill="#FFFFFF">${cleanedHeadline}</text>
-            {/* Description font size increased to 18px, adjusted y position */}
-            <text x="15" y="80" style="font-family: Arial, sans-serif; font-size: 18px;" fill="#DDDDDD">${firstSentence}</text>
+            <text y="${headlineStartY}" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: ${headlineFontSize}px; font-weight: 900;" fill="#FFFFFF">
+                ${headlineTspans}
+            </text>
+            <text y="${sentenceStartY}" style="font-family: Arial, sans-serif; font-size: ${sentenceFontSize}px;" fill="#DDDDDD">
+                ${sentenceTspans}
+            </text>
         </svg>`;
         console.log(`[Simple Preview] Generated SVG Overlay string.`);
+        // --- End SVG Generation ---
+
 
         console.log(`[Simple Preview] Processing image with Sharp...`);
-        // Adjusted overlay position slightly due to increased height
+        const compositeTop = 800 - overlayHeight - 15; // Position from bottom
+        console.log(`[Simple Preview] Overlay height: ${overlayHeight}, Composite top: ${compositeTop}`);
+
         const previewImageBuffer = await sharp(imageBuffer)
             .resize({ width: 800, height: 800, fit: 'cover' })
-            .composite([{ input: Buffer.from(svgOverlay), top: 800 - overlayHeight - 15, left: 0 }])
+            .composite([{ input: Buffer.from(svgOverlay), top: compositeTop, left: 0 }])
             .png().toBuffer();
         console.log(`[Simple Preview] Image processing complete.`);
 
