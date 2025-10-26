@@ -1,4 +1,4 @@
-// curator.js (Further enhanced generateSimplePreviewImage with more logging)
+// curator.js (UPDATED with larger font sizes for SVG text)
 
 require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
@@ -18,10 +18,9 @@ const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 // --- HELPER FUNCTION: Escape XML/HTML characters ---
 function escapeXml(unsafe) {
     if (typeof unsafe !== 'string') {
-        console.warn('[escapeXml] Input was not a string:', unsafe); // Add warning
-        return ''; // Return empty string if input is not a string
+        console.warn('[escapeXml] Input was not a string:', unsafe);
+        return '';
     }
-    // Replace characters problematic for XML/SVG
     return unsafe.replace(/[<>&'"]/g, function (c) {
         switch (c) {
             case '<': return '&lt;';
@@ -94,21 +93,19 @@ async function findRelatedWebArticles(title, source) {
 }
 
 
-// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (*** ADDED MORE CHECKS & LOGGING ***) ---
+// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (*** UPDATED FONT SIZES ***) ---
 async function generateSimplePreviewImage(imageUrl, headline, description) {
     console.log(`[Simple Preview] Starting preview generation.`);
     console.log(`[Simple Preview] Image URL: ${imageUrl}`);
-    console.log(`[Simple Preview] Raw Headline:`, headline); // Log raw input
-    console.log(`[Simple Preview] Raw Description:`, description); // Log raw input
+    console.log(`[Simple Preview] Raw Headline:`, headline);
+    console.log(`[Simple Preview] Raw Description:`, description);
 
     try {
-        // --- Input Validation ---
         if (!imageUrl || typeof imageUrl !== 'string') {
              throw new Error('Invalid or missing imageUrl');
         }
          const headlineText = typeof headline === 'string' ? headline : '';
          const descText = typeof description === 'string' ? description : '';
-        // --- End Input Validation ---
 
         console.log(`[Simple Preview] Fetching image...`);
         const response = await fetch(imageUrl);
@@ -117,28 +114,31 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         console.log(`[Simple Preview] Image fetched successfully.`);
 
         // Extract and escape the first sentence
-        const firstSentenceRaw = descText.split(/[.!?]/)[0]; // Get segment before first ., !, or ?
-        const firstSentence = escapeXml(firstSentenceRaw ? firstSentenceRaw.trim() + '.' : ''); // Add period back, trim whitespace
-        console.log(`[Simple Preview] Escaped First Sentence: ${firstSentence}`); // Log escaped result
+        const firstSentenceRaw = descText.split(/[.!?]/)[0];
+        const firstSentence = escapeXml(firstSentenceRaw ? firstSentenceRaw.trim() + '.' : '');
+        console.log(`[Simple Preview] Escaped First Sentence: ${firstSentence}`);
 
         // Clean and escape the headline
-        const cleanedHeadlineRaw = headlineText.replace(/^\*\*|\*\*$/g, '').trim(); // Remove markdown, trim whitespace
+        const cleanedHeadlineRaw = headlineText.replace(/^\*\*|\*\*$/g, '').trim();
         const cleanedHeadline = escapeXml(cleanedHeadlineRaw);
-        console.log(`[Simple Preview] Escaped Headline: ${cleanedHeadline}`); // Log escaped result
+        console.log(`[Simple Preview] Escaped Headline: ${cleanedHeadline}`);
 
-        const overlayHeight = 90;
-        // Use the escaped text variables in the SVG
+        const overlayHeight = 110; // Increased height slightly for bigger fonts
+        // *** INCREASED FONT SIZES HERE ***
         const svgOverlay = `<svg width="800" height="${overlayHeight}">
             <rect x="0" y="0" width="800" height="${overlayHeight}" fill="#000000" opacity="0.7"/>
-            <text x="15" y="35" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 22px; font-weight: 900;" fill="#FFFFFF">${cleanedHeadline}</text>
-            <text x="15" y="65" style="font-family: Arial, sans-serif; font-size: 14px;" fill="#DDDDDD">${firstSentence}</text>
+            {/* Headline font size increased to 28px, adjusted y position */}
+            <text x="15" y="45" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 28px; font-weight: 900;" fill="#FFFFFF">${cleanedHeadline}</text>
+            {/* Description font size increased to 18px, adjusted y position */}
+            <text x="15" y="80" style="font-family: Arial, sans-serif; font-size: 18px;" fill="#DDDDDD">${firstSentence}</text>
         </svg>`;
         console.log(`[Simple Preview] Generated SVG Overlay string.`);
 
         console.log(`[Simple Preview] Processing image with Sharp...`);
+        // Adjusted overlay position slightly due to increased height
         const previewImageBuffer = await sharp(imageBuffer)
             .resize({ width: 800, height: 800, fit: 'cover' })
-            .composite([{ input: Buffer.from(svgOverlay), top: 800 - overlayHeight - 20, left: 0 }])
+            .composite([{ input: Buffer.from(svgOverlay), top: 800 - overlayHeight - 15, left: 0 }])
             .png().toBuffer();
         console.log(`[Simple Preview] Image processing complete.`);
 
@@ -146,12 +146,11 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         const imagePath = path.join(process.cwd(), 'public', filename);
         await fs.writeFile(imagePath, previewImageBuffer);
         console.log(`[Simple Preview] Success: Image saved to ${imagePath}`);
-        return `/${filename}`; // Return relative path for the browser
+        return `/${filename}`;
 
     } catch (error) {
-        // Log the detailed error
         console.error(`[Simple Preview ERROR] Failed to generate preview:`, error);
-        return '/fallback.png'; // Return fallback path on error
+        return '/fallback.png';
     }
 }
 
