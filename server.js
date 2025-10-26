@@ -1,15 +1,14 @@
-// server.js (FIXED: Typo 5t00 -> 500 AND serves index.js as root)
+// server.js (Corrected original version)
 
 // 1. Import modules
 const express = require('express');
-const path = require('path'); // <-- ADDED THIS LINE
 const { startNewsFetch } = require('./aggregator.js'); 
 const bodyParser = require('body-parser');
 const aggregator = require('./aggregator');
 const db = require('./database');
 const curator = require('./curator');
 const cluster = require('cluster');
-const os =require('os');
+const os = require('os');
 const numCPUs = os.cpus().length;
 
 // 2. Initialize the app and set the port
@@ -19,15 +18,13 @@ const PORT = process.env.PORT || 3000;
 
 // --- MIDDLEWARE SETUP ---
 app.use(bodyParser.json());
-app.use(express.static('public')); // Serve frontend files
+// This will now correctly find and serve index.html
+app.use(express.static('public')); 
 
 // --- API ROUTES (Endpoints) ---
 
-// Root route (*** UPDATED TO SEND YOUR FILE ***)
-app.get('/', (req, res) => {
-    // This now sends your index.js file (which is an HTML file) as the main page
-    res.sendFile(path.join(__dirname, 'public', 'index.js'));
-});
+// Root route (This is no longer needed, express.static handles it)
+// app.get('/', (req, res) => { ... });
 
 // Fetch all stored news articles
 app.get('/api/news', async (req, res) => {
@@ -83,7 +80,7 @@ app.post('/api/find-related-articles', async (req, res) => {
         res.json({ relatedArticles });
     } catch (error) {
         console.error("Error during related article search:", error);
-        // --- THIS IS THE FIX (5t00 -> 500) ---
+        // --- THIS FIXES THE TYPO ---
         res.status(500).json({ error: 'Related article search failed.' }); 
     }
 });
@@ -141,18 +138,13 @@ async function startApp() {
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
-
-  // Fork workers for each CPU.
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
-
-  // Log when a worker dies
   cluster.on('exit', (worker, code, signal) => {
     console.log(`worker ${worker.process.pid} died`);
   });
   
 } else {
-  // This is a worker process.
   startApp();
 }
