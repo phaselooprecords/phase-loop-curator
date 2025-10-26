@@ -1,0 +1,9 @@
+# nixpacks.toml
+
+[phases.setup]
+# Installs system packages needed by sharp/libvips for font handling
+nixPkgs = ["pkgs.fontconfig", "pkgs.freetype", "pkgs.pkg-config"]
+
+[start]
+# Your existing start command
+cmd = "npm start"
