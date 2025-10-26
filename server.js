@@ -1,4 +1,4 @@
-// server.js (UPDATED to serve index.js as the main file)
+// server.js (FIXED: 5t00 -> 500)
 
 // 1. Import modules
 const express = require('express');
@@ -84,7 +84,8 @@ app.post('/api/find-related-articles', async (req, res) => {
         res.json({ relatedArticles });
     } catch (error) {
         console.error("Error during related article search:", error);
-        res.status(5t00).json({ error: 'Related article search failed.' });
+        // --- THIS IS THE FIX ---
+        res.status(500).json({ error: 'Related article search failed.' }); 
     }
 });
 
