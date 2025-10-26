@@ -1,4 +1,4 @@
-// curator.js (Correct version with separate functions)
+// curator.js (UPDATED with XML escaping for SVG text)
 
 require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
@@ -15,7 +15,25 @@ const customsearch = google.customsearch('v1');
 const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
-// --- API FUNCTION 1: GENERATE AI TEXT ---
+// --- HELPER FUNCTION: Escape XML/HTML characters ---
+function escapeXml(unsafe) {
+    if (typeof unsafe !== 'string') {
+        return ''; // Return empty string if input is not a string
+    }
+    return unsafe.replace(/[<>&'"]/g, function (c) {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+            default: return c; // Should not happen with the regex
+        }
+    });
+}
+
+
+// --- API FUNCTION 1: GENERATE AI TEXT (Unchanged) ---
 async function generateAiText(article) {
     const prompt = `
         You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news.
@@ -39,7 +57,7 @@ async function generateAiText(article) {
     }
 }
 
-// --- API FUNCTION 2: SEARCH FOR IMAGES (WITH FILTERS) ---
+// --- API FUNCTION 2: SEARCH FOR IMAGES (WITH FILTERS) (Unchanged) ---
 async function searchForRelevantImages(title, source) {
     const query = `${title} ${source}`; // SMARTER QUERY: e.g., "Meric Long..." + "Pitchfork"
     console.log(`[Image Search] Searching for: ${query}`);
@@ -62,7 +80,7 @@ async function searchForRelevantImages(title, source) {
     } catch (error) { console.error(`[Image Search ERROR]`, error.message); return []; }
 }
 
-// --- API FUNCTION 3: FIND RELATED WEB ARTICLES (UPDATED QUERY) ---
+// --- API FUNCTION 3: FIND RELATED WEB ARTICLES (UPDATED QUERY) (Unchanged) ---
 async function findRelatedWebArticles(title, source) {
     const query = `${title} ${source}`;
     console.log(`[Web Search] Searching for: ${query}`);
@@ -87,17 +105,27 @@ async function findRelatedWebArticles(title, source) {
 }
 
 
-// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (Unchanged) ---
+// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (*** UPDATED ***) ---
 async function generateSimplePreviewImage(imageUrl, headline, description) {
     console.log(`[Simple Preview] Starting preview for: ${imageUrl}`);
     try {
         const response = await fetch(imageUrl);
         if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
         const imageBuffer = await response.buffer();
-        const firstSentence = description.split(/[.!?]/)[0] + '.';
-        const cleanedHeadline = headline.replace(/^\*\*|\*\*$/g, '');
+
+        // Ensure description is a string before splitting
+        const descText = typeof description === 'string' ? description : '';
+        // Extract and escape the first sentence
+        const firstSentenceRaw = descText.split(/[.!?]/)[0];
+        const firstSentence = escapeXml(firstSentenceRaw ? firstSentenceRaw + '.' : ''); // Add period back if sentence exists
+        
+        // Clean and escape the headline
+        const cleanedHeadlineRaw = (typeof headline === 'string' ? headline : '').replace(/^\*\*|\*\*$/g, '');
+        const cleanedHeadline = escapeXml(cleanedHeadlineRaw);
+
 
         const overlayHeight = 90;
+        // Use the escaped text variables in the SVG
         const svgOverlay = `<svg width="800" height="${overlayHeight}">
             <rect x="0" y="0" width="800" height="${overlayHeight}" fill="#000000" opacity="0.7"/>
             <text x="15" y="35" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 22px; font-weight: 900;" fill="#FFFFFF">${cleanedHeadline}</text>
@@ -114,7 +142,7 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         console.log(`[Simple Preview] Success: ${imagePath}`);
         return `/${filename}`;
     } catch (error) {
-        console.error(`[Simple Preview ERROR]`, error.message);
+        console.error(`[Simple Preview ERROR]`, error); // Log the full error
         return '/fallback.png';
     }
 }
