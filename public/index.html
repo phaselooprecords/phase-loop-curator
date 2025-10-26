@@ -48,20 +48,20 @@
 
         input[type="text"], textarea { background-color: #1a1a1a; color: white; border: 1px solid #333; width: 98%; padding: 8px; margin-bottom: 15px; }
         #simple-preview-image { width: 100%; max-width: 600px; margin: auto; display: block; margin-bottom: 20px; }
-        
-        /* New AI Caption Display section */
-        #ai-caption-display { 
-            background-color: #1a1a1a; 
-            padding: 15px; 
-            margin-top: 20px; 
-            border-radius: 4px; 
+
+        /* AI Caption Display section */
+        #ai-caption-display {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
             border: 1px solid #333;
         }
-        #ai-caption-display h3 { 
-            margin-top: 0; 
-            color: #FF6B6B; 
-            font-size: 1.4em; 
-            border-bottom: none; 
+        #ai-caption-display h3 {
+            margin-top: 0;
+            color: #FF6B6B;
+            font-size: 1.4em;
+            border-bottom: none;
             text-align: left;
         }
         #ai-caption-display #caption-text-area {
@@ -111,12 +111,14 @@
             <h2>Quick Preview</h2>
             <img id="simple-preview-image" src="" alt="Simple Preview" />
 
-            <div id="ai-caption-display">
+            
+<div id="ai-caption-display">
                 <h3>AI Caption:</h3>
                 <textarea id="caption-text-area" readonly></textarea>
                 <button id="copy-caption-btn">Copy Caption</button>
             </div>
-            <button id="share-preview-btn">Share Post</button>
+            
+<button id="share-preview-btn">Share Post</button>
             <button id="download-preview-btn">Download Image</button>
             <button onclick="setView('select')" class="back-button">Back to Selection</button>
         </div>
@@ -131,26 +133,22 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchNews();
-            
-            // --- UPDATED: Refresh button listener ---
+
             document.getElementById('refresh-images-btn').onclick = () => {
                 if (currentArticleData) {
                     alert('Refreshing images using original article title...');
-                    // Always use the original article data for searching
                     fetchImages(currentArticleData.title, currentArticleData.source);
                 } else {
                     alert('No article selected.');
                 }
             };
-            
+
             document.getElementById('download-preview-btn').onclick = () => handleDownload();
-            document.getElementById('share-preview-btn').onclick = () => handleShare();
-            
-            // --- NEW: Copy Caption Button Listener ---
+            document.getElementById('share-preview-btn').onclick = () => handleShare(); // Updated function
             document.getElementById('copy-caption-btn').onclick = () => handleCopyCaption();
         });
 
-        // --- UI VIEW HANDLERS (unchanged) ---
+        // --- UI VIEW HANDLERS ---
         function setView(viewId) {
             document.getElementById('news-list').classList.add('hidden');
             document.getElementById('selection-view').classList.add('hidden');
@@ -159,26 +157,25 @@
             else if (viewId === 'select') document.getElementById('selection-view').classList.remove('hidden');
             else if (viewId === 'simple-preview') {
                 document.getElementById('simple-preview-view').classList.remove('hidden');
-                // --- NEW: Populate caption when showing preview ---
                 populateCaptionDisplay();
             }
         }
 
         // --- STEP 1: Fetch News (unchanged) ---
         async function fetchNews() {
+           // ... (unchanged) ...
             const newsListElement = document.getElementById('news-list');
             newsListElement.innerHTML = 'Loading news...';
             try {
                 const response = await fetch('/api/news');
                 const articles = await response.json();
-                newsListElement.innerHTML = ''; 
+                newsListElement.innerHTML = '';
                 articles.forEach(article => {
                     const articleElement = document.createElement('div');
                     articleElement.className = 'article';
                     articleElement.dataset.link = article.link;
                     articleElement.innerHTML = `<h2>${article.title}</h2><p>Source: ${article.source} | Published: ${new Date(article.pubDate).toLocaleDateString()}</p>`;
-                    // Store the full article object to pass on click
-                    articleElement.onclick = () => handleArticleTap(article); 
+                    articleElement.onclick = () => handleArticleTap(article);
                     newsListElement.appendChild(articleElement);
                 });
             } catch (error) {
@@ -189,11 +186,11 @@
 
         // --- STEP 2: Handle Tap & Fan Out API Calls (unchanged) ---
         async function handleArticleTap(article) {
-             currentArticleData = article; // Save the original article
-             currentCuratedData = null; // Reset curated AI text
+           // ... (unchanged) ...
+             currentArticleData = article;
+             currentCuratedData = null;
              setView('select');
-             
-             // Reset UI sections to "loading"
+
              document.getElementById('preview-headline').innerText = "Generating AI text...";
              document.getElementById('preview-description').innerText = "";
              document.getElementById('preview-caption-text').innerText = "";
@@ -201,17 +198,10 @@
              document.getElementById('related-articles-list').innerHTML = "<p>Finding related articles...</p>";
              document.getElementById('original-image-container').classList.add('hidden');
 
-             // Call all three APIs in parallel
-             // Task A: Get AI Text
-             fetchAiText(article); 
-             
-             // Task B: Get Images (using original title and source)
+             fetchAiText(article);
              fetchImages(article.title, article.source);
-             
-             // Task C: Get Related Articles (using original title and source)
              fetchRelatedArticles(article.title, article.source);
 
-             // Handle the original image
              if (article.originalImageUrl) {
                 const originalImgEl = document.getElementById('original-image');
                 const originalImgContainer = document.getElementById('original-image-container');
@@ -221,17 +211,18 @@
             }
          }
 
-        // --- NEW FUNCTION: Fetch AI Text (unchanged) ---
+        // --- Fetch AI Text (unchanged) ---
         async function fetchAiText(article) {
+           // ... (unchanged) ...
             try {
-                const response = await fetch('/api/generate-text', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify(article) // Send the whole article
+                const response = await fetch('/api/generate-text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(article)
                 });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); // Check for 404/500
-                currentCuratedData = await response.json(); // Save to global state
-                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                currentCuratedData = await response.json();
+
                 document.getElementById('preview-headline').innerText = currentCuratedData.headline || "N/A";
                 document.getElementById('preview-description').innerText = currentCuratedData.description || "N/A";
                 document.getElementById('preview-caption-text').innerText = (currentCuratedData.caption || "Caption N/A") + `\n\nNews Source: ${currentCuratedData.originalSource || 'Unknown'}`;
@@ -242,33 +233,34 @@
             }
         }
 
-        // --- NEW FUNCTION: Fetch Images (unchanged) ---
+        // --- Fetch Images (unchanged) ---
         async function fetchImages(title, source) {
+           // ... (unchanged) ...
             const area = document.getElementById('image-selection-area');
             area.innerHTML = "<p>Searching for images...</p>";
             try {
-                const response = await fetch('/api/search-images', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ title: title, source: source }) // Send title AND source
+                const response = await fetch('/api/search-images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: title, source: source })
                 });
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
                 const allRelevantImages = data.images || [];
-                
+
                 area.innerHTML = '';
                 if (allRelevantImages.length === 0) {
                      area.innerHTML = "<p>No relevant images found.</p>";
                      return;
                 }
-                
+
                 allRelevantImages.forEach((imageUrl, index) => {
                     const container = document.createElement('div');
                     const img = document.createElement('img');
                     img.src = imageUrl; img.alt = `Relevant Image ${index + 1}`;
                     img.onerror = function() { this.alt='Image failed'; this.style.border='1px solid red'; };
                     img.onclick = () => startSimplePreviewPipeline(imageUrl);
-                    container.appendChild(img); 
+                    container.appendChild(img);
                     area.appendChild(container);
                 });
 
@@ -278,30 +270,30 @@
             }
         }
 
-        // --- NEW FUNCTION: Fetch Related Articles (unchanged) ---
+        // --- Fetch Related Articles (unchanged) ---
         async function fetchRelatedArticles(title, source) {
+           // ... (unchanged) ...
             const list = document.getElementById('related-articles-list');
             list.innerHTML = "<p>Finding related articles...</p>";
             try {
-                const response = await fetch('/api/find-related-articles', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ title: title, source: source }) // Send title AND source
+                const response = await fetch('/api/find-related-articles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: title, source: source })
                 });
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
                 const relatedArticles = data.relatedArticles || [];
-                
+
                 list.innerHTML = '';
                 if (relatedArticles.length === 0) {
                     list.innerHTML = "<p>No other sources found.</p>";
                     return;
                 }
-                
+
                 relatedArticles.forEach(article => {
-                    // Don't show a link to the article we're already looking at
-                    if (article.link === currentArticleData.link) return; 
-                    
+                    if (article.link === currentArticleData.link) return;
+
                     const el = document.createElement('div');
                     el.className = 'related-article';
                     el.innerHTML = `<a href="${article.link}" target="_blank">${article.title}</a><p>${article.source}</p>`;
@@ -315,8 +307,9 @@
         }
 
 
-        // --- STEP 3.5: Call Simple Preview API (unchanged) ---
+        // --- Call Simple Preview API (unchanged) ---
         async function startSimplePreviewPipeline(imageUrl) {
+           // ... (unchanged) ...
             if (!currentCuratedData) {
                 alert("AI text is still generating, please wait a moment.");
                 return;
@@ -337,8 +330,9 @@
             } catch (error) { console.error('Error generating simple preview:', error); alert('Connection error.'); }
         }
 
-        // --- NEW FUNCTION: Populate Caption Display ---
+        // --- Populate Caption Display (unchanged) ---
         function populateCaptionDisplay() {
+           // ... (unchanged) ...
             const captionTextArea = document.getElementById('caption-text-area');
             if (currentCuratedData) {
                 const headline = (currentCuratedData.headline || "").replace(/^\*\*|\*\*$/g, '');
@@ -346,19 +340,19 @@
                 const caption = currentCuratedData.caption || "";
                 const source = currentCuratedData.originalSource || 'Web Search';
 
-                // Format the text to be copied
-                captionTextArea.value = 
-                    `${headline}\n\n` + 
-                    `${description}\n\n` + 
-                    `${caption}\n\n` + 
+                captionTextArea.value =
+                    `${headline}\n\n` +
+                    `${description}\n\n` +
+                    `${caption}\n\n` +
                     `News Source: ${source}`;
             } else {
                 captionTextArea.value = "AI Caption not available.";
             }
         }
 
-        // --- NEW FUNCTION: Handle Copy Caption ---
+        // --- Handle Copy Caption (unchanged) ---
         async function handleCopyCaption() {
+           // ... (unchanged) ...
             const captionTextArea = document.getElementById('caption-text-area');
             try {
                 await navigator.clipboard.writeText(captionTextArea.value);
@@ -366,38 +360,82 @@
             } catch (err) {
                 console.error('Failed to copy caption:', err);
                 alert("Failed to copy caption. Please copy manually.");
-                captionTextArea.select(); // Select the text so user can copy manually
+                captionTextArea.select();
             }
         }
 
-        // --- Share Button Logic (UPDATED to use common caption source) ---
+        // --- Share Button Logic (*** REWRITTEN FOR WEB SHARE API ***) ---
         async function handleShare() {
-             if (!simplePreviewImagePath) { alert("No image generated yet."); return; } 
-             if (!currentCuratedData) { alert("AI caption not ready."); return; }
-             
-             // Get the caption from the same source that populates the textarea
-             const finalCaption = document.getElementById('caption-text-area').value; 
-             const platform = prompt("Share to where? (e.g., 'Instagram', 'Twitter')");
-             if (!platform) return;
-             alert(`Attempting to share to ${platform}... (Check terminal)`);
-             try {
-                 const response = await fetch('/api/share', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ imagePath: simplePreviewImagePath, caption: finalCaption, platform: platform })
-                 });
-                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                 const shareData = await response.json();
-                 if (shareData.error) { alert(`Share Failed: ${shareData.error}`); }
-                 else { alert(`✅ SUCCESS: ${shareData.message}`); }
-             } catch (error) { console.error('Sharing error:', error); alert('Network error during sharing.'); }
-         }
+            if (!simplePreviewImagePath || !currentCuratedData) {
+                alert("Preview image or AI caption not ready.");
+                return;
+            }
+
+            const shareTitle = (currentCuratedData.headline || "Phase Loop Post").replace(/^\*\*|\*\*$/g, '');
+            const shareText = document.getElementById('caption-text-area').value;
+            const imageUrl = window.location.origin + simplePreviewImagePath; // Get full URL
+
+            // Check if Web Share API and canShare (for files) are supported
+            if (navigator.share && navigator.canShare) {
+                let filesArray = [];
+                try {
+                    console.log(`Attempting to fetch image for sharing: ${imageUrl}`);
+                    const response = await fetch(imageUrl);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch image: ${response.statusText}`);
+                    }
+                    const blob = await response.blob();
+                    console.log(`Image fetched successfully. Blob type: ${blob.type}, size: ${blob.size}`);
+
+                    // Determine filename and type (ensure it's png)
+                    const fileName = `${shareTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`;
+                    const file = new File([blob], fileName, { type: 'image/png' });
+                    filesArray.push(file);
+
+                    // Check if the browser *can* share these files
+                    if (navigator.canShare({ files: filesArray })) {
+                        console.log("Browser supports sharing these files.");
+                        await navigator.share({
+                            title: shareTitle,
+                            text: shareText,
+                            files: filesArray,
+                        });
+                        console.log('Successful share via Web Share API');
+                        alert('Shared successfully!');
+                    } else {
+                        console.warn("Browser reports it cannot share these files. Falling back to text/URL share.");
+                        // Fallback: Share only text and maybe a URL if the file type isn't supported
+                        await navigator.share({
+                            title: shareTitle,
+                            text: `${shareText}\n\nImage: ${imageUrl}`, // Include image URL in text
+                        });
+                        console.log('Successful text/URL share via Web Share API');
+                        alert('Shared text successfully! (Image sharing might not be supported by the chosen app)');
+                    }
+                } catch (err) {
+                    console.error('Error during Web Share API:', err);
+                    if (err.name === 'AbortError') {
+                        // User cancelled the share dialog - this is normal
+                        console.log('Share cancelled by user.');
+                    } else {
+                        alert(`Sharing failed: ${err.message}\n\nAttempting to copy caption instead.`);
+                        handleCopyCaption(); // Fallback to copying caption if share fails
+                    }
+                }
+            } else {
+                console.log("Web Share API not supported. Falling back to copy caption.");
+                alert("Native sharing not supported on this browser/device. Caption copied to clipboard - please share manually.");
+                handleCopyCaption(); // Fallback for non-supporting browsers
+            }
+        }
+
 
         // --- Download Button Logic (unchanged) ---
         function handleDownload() {
+           // ... (unchanged) ...
             if (!simplePreviewImagePath) { alert("No image generated yet."); return; }
             if (!currentCuratedData) { alert("AI data not ready."); return; }
-            
+
             const link = document.createElement('a');
             link.href = simplePreviewImagePath;
             const cleanedHeadlineText = (currentCuratedData?.headline || 'phaseloop-post').replace(/^\*\*|\*\*$/g, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
