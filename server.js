@@ -1,4 +1,4 @@
-// server.js (FIXED: 5t00 -> 500)
+// server.js (FIXED: Typo 5t00 -> 500 AND serves index.js as root)
 
 // 1. Import modules
 const express = require('express');
@@ -25,8 +25,7 @@ app.use(express.static('public')); // Serve frontend files
 
 // Root route (*** UPDATED TO SEND YOUR FILE ***)
 app.get('/', (req, res) => {
-    // This now sends your index.js file as the main page
-    // (This assumes your HTML/JS is in a file named 'index.js' in the 'public' folder)
+    // This now sends your index.js file (which is an HTML file) as the main page
     res.sendFile(path.join(__dirname, 'public', 'index.js'));
 });
 
@@ -84,7 +83,7 @@ app.post('/api/find-related-articles', async (req, res) => {
         res.json({ relatedArticles });
     } catch (error) {
         console.error("Error during related article search:", error);
-        // --- THIS IS THE FIX ---
+        // --- THIS IS THE FIX (5t00 -> 500) ---
         res.status(500).json({ error: 'Related article search failed.' }); 
     }
 });
