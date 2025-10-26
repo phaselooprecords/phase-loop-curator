@@ -1,4 +1,4 @@
-// curator.js (UPDATED with text wrapping for SVG overlay)
+// curator.js (FIXED: Round compositeTop value to integer)
 
 require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
@@ -33,37 +33,29 @@ function escapeXml(unsafe) {
     });
 }
 
-// --- NEW HELPER FUNCTION: Wrap text for SVG ---
-// Simple approximation: breaks text based on character count estimate
+// --- HELPER FUNCTION: Wrap text for SVG ---
 function wrapText(text, maxCharsPerLine) {
-    if (!text) return ['']; // Handle empty input
+    if (!text) return [''];
     const words = text.split(' ');
     const lines = [];
     let currentLine = '';
 
     words.forEach(word => {
-        // Check if adding the next word exceeds the limit
-        if ((currentLine + word).length > maxCharsPerLine) {
-            // Push the current line and start a new one
+        if ((currentLine + word).length > maxCharsPerLine && currentLine.length > 0) { // Added check for empty currentLine
             lines.push(currentLine.trim());
             currentLine = word + ' ';
         } else {
-            // Add the word to the current line
             currentLine += word + ' ';
         }
     });
-
-    // Add the last line
     lines.push(currentLine.trim());
-
-    // Limit to a maximum of 2 lines for simplicity in the overlay
-    return lines.slice(0, 2);
+    return lines.slice(0, 2); // Limit to 2 lines
 }
 
 
 // --- API FUNCTION 1: GENERATE AI TEXT (Unchanged) ---
 async function generateAiText(article) {
-    // ... (This function remains the same as before) ...
+    // ... (This function remains the same) ...
     const prompt = `
         You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news.
         TASK: Synthesize the news based on the title. Generate:
@@ -88,7 +80,7 @@ async function generateAiText(article) {
 
 // --- API FUNCTION 2: SEARCH FOR IMAGES (Unchanged) ---
 async function searchForRelevantImages(title, source) {
-    // ... (This function remains the same as before) ...
+    // ... (This function remains the same) ...
     const query = `${title} ${source}`;
     console.log(`[Image Search] Searching for: ${query}`);
     try {
@@ -105,7 +97,7 @@ async function searchForRelevantImages(title, source) {
 
 // --- API FUNCTION 3: FIND RELATED WEB ARTICLES (Unchanged) ---
 async function findRelatedWebArticles(title, source) {
-    // ... (This function remains the same as before) ...
+    // ... (This function remains the same) ...
      const query = `${title} ${source}`;
     console.log(`[Web Search] Searching for: ${query}`);
     try {
@@ -121,7 +113,7 @@ async function findRelatedWebArticles(title, source) {
 }
 
 
-// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (*** UPDATED FOR TEXT WRAPPING ***) ---
+// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (*** UPDATED: Round compositeTop ***) ---
 async function generateSimplePreviewImage(imageUrl, headline, description) {
     console.log(`[Simple Preview] Starting preview generation.`);
     console.log(`[Simple Preview] Image URL: ${imageUrl}`);
@@ -142,16 +134,14 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         console.log(`[Simple Preview] Image fetched successfully.`);
 
         // --- Text Preparation ---
-        // Clean headline and wrap (approx. 40 chars for 28px font)
         const cleanedHeadlineRaw = headlineText.replace(/^\*\*|\*\*$/g, '').trim();
-        const headlineLines = wrapText(cleanedHeadlineRaw, 40); // Wrap headline
+        const headlineLines = wrapText(cleanedHeadlineRaw, 40);
         const escapedHeadlineLines = headlineLines.map(line => escapeXml(line));
         console.log(`[Simple Preview] Escaped Headline Lines:`, escapedHeadlineLines);
 
-        // Extract first sentence, wrap (approx. 80 chars for 18px font), and escape
         const firstSentenceRaw = descText.split(/[.!?]/)[0];
         const fullFirstSentence = firstSentenceRaw ? firstSentenceRaw.trim() + '.' : '';
-        const sentenceLines = wrapText(fullFirstSentence, 80); // Wrap sentence
+        const sentenceLines = wrapText(fullFirstSentence, 80);
         const escapedSentenceLines = sentenceLines.map(line => escapeXml(line));
         console.log(`[Simple Preview] Escaped Sentence Lines:`, escapedSentenceLines);
         // --- End Text Preparation ---
@@ -160,32 +150,35 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         // --- SVG Generation ---
         const headlineFontSize = 28;
         const sentenceFontSize = 18;
-        const lineSpacing = 1.2; // Multiplier for line height
-        const padding = 15; // Padding inside the box
+        const lineSpacing = 1.2; // Multiplier for line height (adjusts vertical space between lines)
+        const textBlockSpacing = 10; // Pixels between headline block and sentence block
+        const padding = 15; // Padding inside the overlay box
 
         // Calculate needed height based on lines
-        const headlineHeight = escapedHeadlineLines.length * headlineFontSize * lineSpacing;
-        const sentenceHeight = escapedSentenceLines.length * sentenceFontSize * lineSpacing;
-        const totalTextHeight = headlineHeight + sentenceHeight + padding; // Add space between sections
+        // Add (lines.length - 1) * fontSize * (lineSpacing - 1) for inter-line spacing within a block
+        const headlineHeight = escapedHeadlineLines.length * headlineFontSize + (escapedHeadlineLines.length > 1 ? (escapedHeadlineLines.length - 1) * headlineFontSize * (lineSpacing - 1) : 0);
+        const sentenceHeight = escapedSentenceLines.length * sentenceFontSize + (escapedSentenceLines.length > 1 ? (escapedSentenceLines.length - 1) * sentenceFontSize * (lineSpacing - 1) : 0);
+        const totalTextHeight = headlineHeight + sentenceHeight + textBlockSpacing;
         const overlayHeight = Math.max(110, totalTextHeight + padding * 2); // Ensure min height, add top/bottom padding
 
         // Generate TSPAN elements for headline
         let headlineTspans = '';
         escapedHeadlineLines.forEach((line, index) => {
-            const dy = index === 0 ? 0 : headlineFontSize * lineSpacing; // Use dy for subsequent lines
-            headlineTspans += `<tspan x="${padding}" dy="${dy}em">${line}</tspan>`;
+            // dy controls vertical shift *relative* to the previous tspan or the text element's y
+            const dy = index === 0 ? 0 : `${lineSpacing}em`; // Use em for relative spacing
+            headlineTspans += `<tspan x="${padding}" dy="${dy}">${line}</tspan>`;
         });
 
         // Generate TSPAN elements for sentence
         let sentenceTspans = '';
         escapedSentenceLines.forEach((line, index) => {
-            const dy = index === 0 ? 0 : sentenceFontSize * lineSpacing;
-            sentenceTspans += `<tspan x="${padding}" dy="${dy}em">${line}</tspan>`;
+            const dy = index === 0 ? 0 : `${lineSpacing}em`;
+            sentenceTspans += `<tspan x="${padding}" dy="${dy}">${line}</tspan>`;
         });
 
-        // Calculate starting Y positions
+        // Calculate starting Y positions (baseline of the first line)
         const headlineStartY = padding + headlineFontSize; // Start Y for first line of headline
-        const sentenceStartY = headlineStartY + headlineHeight + padding / 2; // Start Y for first line of sentence
+        const sentenceStartY = headlineStartY + headlineHeight + textBlockSpacing; // Start Y for first line of sentence
 
         const svgOverlay = `<svg width="800" height="${overlayHeight}">
             <rect x="0" y="0" width="800" height="${overlayHeight}" fill="#000000" opacity="0.7"/>
@@ -201,11 +194,13 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
 
 
         console.log(`[Simple Preview] Processing image with Sharp...`);
-        const compositeTop = 800 - overlayHeight - 15; // Position from bottom
-        console.log(`[Simple Preview] Overlay height: ${overlayHeight}, Composite top: ${compositeTop}`);
+        // *** THIS IS THE FIX: Round the calculated top position ***
+        const compositeTop = Math.round(800 - overlayHeight - 15); // Position from bottom, rounded
+        console.log(`[Simple Preview] Overlay height: ${overlayHeight}, Composite top: ${compositeTop}`); // Log the rounded value
 
         const previewImageBuffer = await sharp(imageBuffer)
             .resize({ width: 800, height: 800, fit: 'cover' })
+            // Use the rounded integer value here
             .composite([{ input: Buffer.from(svgOverlay), top: compositeTop, left: 0 }])
             .png().toBuffer();
         console.log(`[Simple Preview] Image processing complete.`);
