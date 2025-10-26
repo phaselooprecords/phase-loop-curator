@@ -1,4 +1,4 @@
-// curator.js (UPDATED with XML escaping for SVG text)
+// curator.js (Further enhanced generateSimplePreviewImage with more logging)
 
 require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
@@ -18,8 +18,10 @@ const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 // --- HELPER FUNCTION: Escape XML/HTML characters ---
 function escapeXml(unsafe) {
     if (typeof unsafe !== 'string') {
+        console.warn('[escapeXml] Input was not a string:', unsafe); // Add warning
         return ''; // Return empty string if input is not a string
     }
+    // Replace characters problematic for XML/SVG
     return unsafe.replace(/[<>&'"]/g, function (c) {
         switch (c) {
             case '<': return '&lt;';
@@ -27,14 +29,14 @@ function escapeXml(unsafe) {
             case '&': return '&amp;';
             case '\'': return '&apos;';
             case '"': return '&quot;';
-            default: return c; // Should not happen with the regex
+            default: return c;
         }
     });
 }
 
-
 // --- API FUNCTION 1: GENERATE AI TEXT (Unchanged) ---
 async function generateAiText(article) {
+    // ... (This function remains the same as before)
     const prompt = `
         You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news.
         TASK: Synthesize the news based on the title. Generate:
@@ -48,7 +50,7 @@ async function generateAiText(article) {
         const response = await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }], config: { responseMimeType: "application/json" } });
         if (!response || !response.text) { throw new Error("API response text invalid."); }
         const result = JSON.parse(response.text.trim());
-        result.originalSource = article.source; // Pass this back too
+        result.originalSource = article.source;
         console.log(`[AI] Successfully generated content for: ${article.title}`);
         return result;
     } catch (error) {
@@ -57,21 +59,15 @@ async function generateAiText(article) {
     }
 }
 
-// --- API FUNCTION 2: SEARCH FOR IMAGES (WITH FILTERS) (Unchanged) ---
+// --- API FUNCTION 2: SEARCH FOR IMAGES (Unchanged) ---
 async function searchForRelevantImages(title, source) {
-    const query = `${title} ${source}`; // SMARTER QUERY: e.g., "Meric Long..." + "Pitchfork"
+    // ... (This function remains the same as before)
+    const query = `${title} ${source}`;
     console.log(`[Image Search] Searching for: ${query}`);
     try {
         if (!GOOGLE_SEARCH_CX || !GOOGLE_API_KEY) { throw new Error("Google Search CX or API Key missing."); }
         const response = await customsearch.cse.list({
-            auth: GOOGLE_API_KEY,
-            cx: GOOGLE_SEARCH_CX,
-            q: query,
-            searchType: 'image',
-            num: 9,
-            safe: 'high',
-            imgType: 'photo',   // NEW FILTER: No clip art or line drawings
-            imgSize: 'medium'   // NEW FILTER: No tiny icons
+            auth: GOOGLE_API_KEY, cx: GOOGLE_SEARCH_CX, q: query, searchType: 'image', num: 9, safe: 'high', imgType: 'photo', imgSize: 'medium'
         });
         if (!response.data.items || response.data.items.length === 0) { throw new Error('No images found.'); }
         const imageUrls = response.data.items.map(item => item.link);
@@ -80,49 +76,55 @@ async function searchForRelevantImages(title, source) {
     } catch (error) { console.error(`[Image Search ERROR]`, error.message); return []; }
 }
 
-// --- API FUNCTION 3: FIND RELATED WEB ARTICLES (UPDATED QUERY) (Unchanged) ---
+// --- API FUNCTION 3: FIND RELATED WEB ARTICLES (Unchanged) ---
 async function findRelatedWebArticles(title, source) {
-    const query = `${title} ${source}`;
+    // ... (This function remains the same as before)
+     const query = `${title} ${source}`;
     console.log(`[Web Search] Searching for: ${query}`);
     try {
         if (!GOOGLE_SEARCH_CX || !GOOGLE_API_KEY) { throw new Error("Google Search CX or API Key missing."); }
         const response = await customsearch.cse.list({
-            auth: GOOGLE_API_KEY,
-            cx: GOOGLE_SEARCH_CX,
-            q: query,
-            num: 5 // Get 5 related links
+            auth: GOOGLE_API_KEY, cx: GOOGLE_SEARCH_CX, q: query, num: 5
         });
         if (!response.data.items || response.data.items.length === 0) { throw new Error('No related articles found.'); }
-        
-        const articles = response.data.items.map(item => ({
-            title: item.title,
-            link: item.link,
-            source: item.displayLink
-        }));
+        const articles = response.data.items.map(item => ({ title: item.title, link: item.link, source: item.displayLink }));
         console.log(`[Web Search] Found ${articles.length} related articles.`);
         return articles;
     } catch (error) { console.error(`[Web Search ERROR]`, error.message); return []; }
 }
 
 
-// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (*** UPDATED ***) ---
+// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (*** ADDED MORE CHECKS & LOGGING ***) ---
 async function generateSimplePreviewImage(imageUrl, headline, description) {
-    console.log(`[Simple Preview] Starting preview for: ${imageUrl}`);
+    console.log(`[Simple Preview] Starting preview generation.`);
+    console.log(`[Simple Preview] Image URL: ${imageUrl}`);
+    console.log(`[Simple Preview] Raw Headline:`, headline); // Log raw input
+    console.log(`[Simple Preview] Raw Description:`, description); // Log raw input
+
     try {
+        // --- Input Validation ---
+        if (!imageUrl || typeof imageUrl !== 'string') {
+             throw new Error('Invalid or missing imageUrl');
+        }
+         const headlineText = typeof headline === 'string' ? headline : '';
+         const descText = typeof description === 'string' ? description : '';
+        // --- End Input Validation ---
+
+        console.log(`[Simple Preview] Fetching image...`);
         const response = await fetch(imageUrl);
-        if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
+        if (!response.ok) throw new Error(`Fetch failed for ${imageUrl}: ${response.statusText}`);
         const imageBuffer = await response.buffer();
+        console.log(`[Simple Preview] Image fetched successfully.`);
 
-        // Ensure description is a string before splitting
-        const descText = typeof description === 'string' ? description : '';
         // Extract and escape the first sentence
-        const firstSentenceRaw = descText.split(/[.!?]/)[0];
-        const firstSentence = escapeXml(firstSentenceRaw ? firstSentenceRaw + '.' : ''); // Add period back if sentence exists
-        
-        // Clean and escape the headline
-        const cleanedHeadlineRaw = (typeof headline === 'string' ? headline : '').replace(/^\*\*|\*\*$/g, '');
-        const cleanedHeadline = escapeXml(cleanedHeadlineRaw);
+        const firstSentenceRaw = descText.split(/[.!?]/)[0]; // Get segment before first ., !, or ?
+        const firstSentence = escapeXml(firstSentenceRaw ? firstSentenceRaw.trim() + '.' : ''); // Add period back, trim whitespace
+        console.log(`[Simple Preview] Escaped First Sentence: ${firstSentence}`); // Log escaped result
 
+        // Clean and escape the headline
+        const cleanedHeadlineRaw = headlineText.replace(/^\*\*|\*\*$/g, '').trim(); // Remove markdown, trim whitespace
+        const cleanedHeadline = escapeXml(cleanedHeadlineRaw);
+        console.log(`[Simple Preview] Escaped Headline: ${cleanedHeadline}`); // Log escaped result
 
         const overlayHeight = 90;
         // Use the escaped text variables in the SVG
@@ -131,19 +133,25 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
             <text x="15" y="35" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 22px; font-weight: 900;" fill="#FFFFFF">${cleanedHeadline}</text>
             <text x="15" y="65" style="font-family: Arial, sans-serif; font-size: 14px;" fill="#DDDDDD">${firstSentence}</text>
         </svg>`;
+        console.log(`[Simple Preview] Generated SVG Overlay string.`);
 
+        console.log(`[Simple Preview] Processing image with Sharp...`);
         const previewImageBuffer = await sharp(imageBuffer)
             .resize({ width: 800, height: 800, fit: 'cover' })
             .composite([{ input: Buffer.from(svgOverlay), top: 800 - overlayHeight - 20, left: 0 }])
             .png().toBuffer();
+        console.log(`[Simple Preview] Image processing complete.`);
+
         const filename = `preview_${Date.now()}.png`;
         const imagePath = path.join(process.cwd(), 'public', filename);
         await fs.writeFile(imagePath, previewImageBuffer);
-        console.log(`[Simple Preview] Success: ${imagePath}`);
-        return `/${filename}`;
+        console.log(`[Simple Preview] Success: Image saved to ${imagePath}`);
+        return `/${filename}`; // Return relative path for the browser
+
     } catch (error) {
-        console.error(`[Simple Preview ERROR]`, error); // Log the full error
-        return '/fallback.png';
+        // Log the detailed error
+        console.error(`[Simple Preview ERROR] Failed to generate preview:`, error);
+        return '/fallback.png'; // Return fallback path on error
     }
 }
 
