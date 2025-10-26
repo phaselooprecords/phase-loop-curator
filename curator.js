@@ -1,4 +1,4 @@
-// curator.js (FINAL VERSION - Stylish Text Overlays)
+// curator.js (Correct version with separate functions)
 
 require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
@@ -15,12 +15,46 @@ const customsearch = google.customsearch('v1');
 const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
-// --- HELPER FUNCTION: REAL IMAGE SEARCH ---
-async function searchForRelevantImages(query) {
+// --- API FUNCTION 1: GENERATE AI TEXT ---
+async function generateAiText(article) {
+    const prompt = `
+        You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news.
+        TASK: Synthesize the news based on the title. Generate:
+        1. HEADLINE (5-7 words, bold, technical style).
+        2. SHORT DESCRIPTION (max 40 words, MUST include key artists/subjects mentioned in the text).
+        3. SOCIAL MEDIA CAPTION (max 100 words). Include #PhaseLoopRecords and mention source (${article.source}).
+        NEWS TITLE: "${article.title}"
+        FORMAT RESPONSE STRICTLY AS JSON: { "headline": "...", "description": "...", "caption": "..." }`;
+
+    try {
+        const response = await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }], config: { responseMimeType: "application/json" } });
+        if (!response || !response.text) { throw new Error("API response text invalid."); }
+        const result = JSON.parse(response.text.trim());
+        result.originalSource = article.source; // Pass this back too
+        console.log(`[AI] Successfully generated content for: ${article.title}`);
+        return result;
+    } catch (error) {
+        console.error("[AI ERROR]", error.message);
+        return { headline: "AI Failed", description: "Try again.", caption: "Error.", originalSource: article.source };
+    }
+}
+
+// --- API FUNCTION 2: SEARCH FOR IMAGES (WITH FILTERS) ---
+async function searchForRelevantImages(title, source) {
+    const query = `${title} ${source}`; // SMARTER QUERY: e.g., "Meric Long..." + "Pitchfork"
     console.log(`[Image Search] Searching for: ${query}`);
     try {
         if (!GOOGLE_SEARCH_CX || !GOOGLE_API_KEY) { throw new Error("Google Search CX or API Key missing."); }
-        const response = await customsearch.cse.list({ auth: GOOGLE_API_KEY, cx: GOOGLE_SEARCH_CX, q: query, searchType: 'image', num: 9, safe: 'high' });
+        const response = await customsearch.cse.list({
+            auth: GOOGLE_API_KEY,
+            cx: GOOGLE_SEARCH_CX,
+            q: query,
+            searchType: 'image',
+            num: 9,
+            safe: 'high',
+            imgType: 'photo',   // NEW FILTER: No clip art or line drawings
+            imgSize: 'medium'   // NEW FILTER: No tiny icons
+        });
         if (!response.data.items || response.data.items.length === 0) { throw new Error('No images found.'); }
         const imageUrls = response.data.items.map(item => item.link);
         console.log(`[Image Search] Found ${imageUrls.length} URLs.`);
@@ -28,32 +62,32 @@ async function searchForRelevantImages(query) {
     } catch (error) { console.error(`[Image Search ERROR]`, error.message); return []; }
 }
 
-// --- CORE FUNCTION 1: CURATE ARTICLE ---
-async function curateArticle(article) {
-    const searchQuery = `${article.title} ${article.source}`;
-    const relevantImages = await searchForRelevantImages(searchQuery);
-    const prompt = `
-        You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news.
-        TASK: Synthesize the news based on the title. Generate:
-        1. HEADLINE (5-7 words, bold, technical style).
-        2. SHORT DESCRIPTION (max 40 words).
-        3. SOCIAL MEDIA CAPTION (max 100 words). Include #PhaseLoopRecords and mention source (${article.source}).
-        NEWS TITLE: "${article.title}"
-        FORMAT RESPONSE STRICTLY AS JSON: { "headline": "...", "description": "...", "caption": "..." }`;
+// --- API FUNCTION 3: FIND RELATED WEB ARTICLES (UPDATED QUERY) ---
+async function findRelatedWebArticles(title, source) {
+    const query = `${title} ${source}`;
+    console.log(`[Web Search] Searching for: ${query}`);
     try {
-        const response = await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }], config: { responseMimeType: "application/json" } });
-        if (!response || !response.text) { throw new Error("API response text invalid."); }
-        const result = JSON.parse(response.text.trim());
-        console.log(`[AI] Successfully generated content for: ${article.title}`);
-        result.images = relevantImages;
-        result.originalSource = article.source;
-        return result;
-    } catch (error) { console.error("[AI ERROR]", error.message); return { headline: "AI Failed", description: "Try again.", caption: "Error.", images: relevantImages }; }
+        if (!GOOGLE_SEARCH_CX || !GOOGLE_API_KEY) { throw new Error("Google Search CX or API Key missing."); }
+        const response = await customsearch.cse.list({
+            auth: GOOGLE_API_KEY,
+            cx: GOOGLE_SEARCH_CX,
+            q: query,
+            num: 5 // Get 5 related links
+        });
+        if (!response.data.items || response.data.items.length === 0) { throw new Error('No related articles found.'); }
+        
+        const articles = response.data.items.map(item => ({
+            title: item.title,
+            link: item.link,
+            source: item.displayLink
+        }));
+        console.log(`[Web Search] Found ${articles.length} related articles.`);
+        return articles;
+    } catch (error) { console.error(`[Web Search ERROR]`, error.message); return []; }
 }
 
-// curator.js (UPDATED functions for text fit)
 
-// --- CORE FUNCTION 3: GENERATE SIMPLE PREVIEW IMAGE (Final Text Fit) ---
+// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (Unchanged) ---
 async function generateSimplePreviewImage(imageUrl, headline, description) {
     console.log(`[Simple Preview] Starting preview for: ${imageUrl}`);
     try {
@@ -63,19 +97,16 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         const firstSentence = description.split(/[.!?]/)[0] + '.';
         const cleanedHeadline = headline.replace(/^\*\*|\*\*$/g, '');
 
-        // **REDUCED HEADLINE FONT SIZE**
         const overlayHeight = 90;
         const svgOverlay = `<svg width="800" height="${overlayHeight}">
             <rect x="0" y="0" width="800" height="${overlayHeight}" fill="#000000" opacity="0.7"/>
-            {/* Headline: Reduced font size to 22px */}
             <text x="15" y="35" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 22px; font-weight: 900;" fill="#FFFFFF">${cleanedHeadline}</text>
-            {/* First sentence */}
             <text x="15" y="65" style="font-family: Arial, sans-serif; font-size: 14px;" fill="#DDDDDD">${firstSentence}</text>
         </svg>`;
 
         const previewImageBuffer = await sharp(imageBuffer)
             .resize({ width: 800, height: 800, fit: 'cover' })
-            .composite([{ input: Buffer.from(svgOverlay), top: 800 - overlayHeight - 20, left: 0 }]) // Positioned 20px from bottom
+            .composite([{ input: Buffer.from(svgOverlay), top: 800 - overlayHeight - 20, left: 0 }])
             .png().toBuffer();
         const filename = `preview_${Date.now()}.png`;
         const imagePath = path.join(process.cwd(), 'public', filename);
@@ -88,12 +119,10 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
     }
 }
 
-
 // --- EXPORTS ---
-// (Ensure exports include curateArticle and generateSimplePreviewImage)
 module.exports = {
-    curateArticle,
-    // generateBrandedImage, // This should be removed if you simplified
+    generateAiText,
+    searchForRelevantImages,
+    findRelatedWebArticles,
     generateSimplePreviewImage
 };
-
