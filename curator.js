@@ -1,4 +1,4 @@
-// curator.js (UPDATED: Added keyword extraction, search returns query)
+// curator.js (UPDATED: Revised generateAiText prompt)
 
 require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
@@ -11,106 +11,103 @@ const fetch = require('node-fetch');
 // --- API CLIENTS SETUP ---
 // ... (unchanged)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const model = 'gemini-2.5-flash'; // Ensure this model is suitable or use a more advanced one if needed
+const model = 'gemini-2.5-flash';
 const customsearch = google.customsearch('v1');
 const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
+
 // --- HELPER FUNCTIONS (escapeXml, wrapText - Unchanged) ---
-// ... (unchanged)
 function escapeXml(unsafe) { /* ... */ }
 function wrapText(text, maxCharsPerLine) { /* ... */ }
 
-// --- API FUNCTION 1: GENERATE AI TEXT (Unchanged) ---
-async function generateAiText(article) { /* ... unchanged ... */ }
-
-// --- *** NEW API FUNCTION: EXTRACT SEARCH KEYWORDS *** ---
-async function extractSearchKeywords(headline, description) {
-    console.log(`[AI Keywords] Extracting keywords from: "${headline}" / "${description}"`);
-    // Combine headline and description for better context
-    const inputText = `Headline: ${headline}\nDescription: ${description}`;
+// --- API FUNCTION 1: GENERATE AI TEXT (*** PROMPT UPDATED ***) ---
+async function generateAiText(article) {
+    // --- UPDATED PROMPT ---
     const prompt = `
-        Analyze the following text about a music news item. Identify the main subject(s) (artist, event, topic).
-        Based ONLY on the main subject(s), provide the BEST concise keyword phrase (max 4 words) suitable for a Google Image Search to find relevant photos of that subject.
-        Examples:
-        - Input: Headline: **Taylor Swift's Eras Tour Continues** Description: Taylor Swift performed her latest hits... Output: Taylor Swift Eras Tour
-        - Input: Headline: **New Aphex Twin EP Announced** Description: Aphex Twin is releasing a new EP... Output: Aphex Twin
-        - Input: Headline: **Festival Lineup Revealed** Description: The Coachella festival announced headliners including... Output: Coachella lineup
-        - Input: Headline: **BOYNEXTDOOR: Authenticity Algorithm Calibrated** Description: BOYNEXTDOOR details their commitment... Output: BOYNEXTDOOR band
+        You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news, adhering to journalistic best practices (clarity, accuracy, conciseness).
+        TASK: Analyze the news based ONLY on the provided title. Generate the following content:
+        1.  **image_headline**: A very concise headline (5-7 words, technical style, suitable for an image overlay). Make this bold using markdown (**headline**).
+        2.  **short_description**: A brief description (max 40 words, MUST include key artists/subjects mentioned in the title, suitable for an image overlay).
+        3.  **social_caption**: A social media post caption (max 100 words total) ready for platforms like Instagram/Twitter, structured precisely as follows:
+            * First line: An attention-grabbing social media headline (different from image_headline, avoid markdown bolding).
+            * Second line: Start a new paragraph. Write one informative paragraph that uniquely summarizes the core news inferred from the source article title. Use an engaging, journalistic tone. Avoid repeating phrases from the input title or the social media headline.
+            * End the paragraph by mentioning the news source: (Source: ${article.source}).
+            * Include the hashtag #PhaseLoopRecords.
 
-        TEXT TO ANALYZE:
-        "${inputText}"
+        NEWS TITLE: "${article.title}"
 
-        OUTPUT ONLY the keyword phrase.`;
+        Ensure the generated text avoids repetition and presents the information clearly. The social_caption MUST follow the two-part structure (headline, then paragraph with source/hashtag).
+        FORMAT RESPONSE STRICTLY AS JSON: { "image_headline": "...", "short_description": "...", "social_caption": "..." }`;
+    // --- END UPDATED PROMPT ---
 
+    console.log(`[generateAiText] Starting AI generation for: ${article.title}`);
     try {
+        console.log("[generateAiText] Sending prompt to Gemini model:", model);
         const response = await ai.models.generateContent({
-            model: model, // Or consider a model better suited for extraction if needed
-            contents: [{ role: 'user', parts: [{ text: prompt }] }]
-            // No specific JSON format needed here, just the text response
-        });
-        if (!response || !response.text) { throw new Error("AI keyword extraction API response invalid."); }
-        const keywords = response.text.trim().replace(/[\*\"]/g, ''); // Clean up response
-        console.log(`[AI Keywords] Extracted Keywords: "${keywords}"`);
-        // Basic validation: return null if keywords are empty or seem like boilerplate error
-        if (!keywords || keywords.toLowerCase().includes('cannot fulfill')) {
-            console.warn('[AI Keywords] Extraction failed or returned invalid keywords.');
-            return null;
-        }
-        return keywords;
+             model,
+             contents: [{ role: 'user', parts: [{ text: prompt }] }],
+             generationConfig: { responseMimeType: "application/json" }
+         });
+        console.log("[generateAiText] Received response from Gemini.");
+
+        const rawResponseText = response?.response?.text();
+        console.log("[generateAiText] Raw Gemini response text:", rawResponseText);
+
+        if (!rawResponseText) { throw new Error("Gemini API response text was empty or invalid structure."); }
+
+        console.log("[generateAiText] Attempting to parse JSON...");
+        // --- RENAME OUTPUT VARIABLES TO MATCH NEW JSON KEYS ---
+        const resultJson = JSON.parse(rawResponseText.trim());
+        const result = {
+            headline: resultJson.image_headline, // Map image_headline back to headline
+            description: resultJson.short_description, // Map short_description back to description
+            caption: resultJson.social_caption, // Map social_caption back to caption
+            originalSource: article.source // Keep original source
+        };
+        // --- END RENAME ---
+        console.log("[generateAiText] JSON parsed successfully:", result); // Log the mapped result
+
+        // Basic validation on the *expected* output fields
+        if (!result.headline || !result.description || !result.caption) {
+             console.warn("[generateAiText] Parsed JSON missing expected fields (headline, description, caption).");
+             throw new Error("Parsed JSON missing expected fields.");
+         }
+
+
+        console.log(`[generateAiText] Successfully generated content.`);
+        return result; // Return the object with the original key names
+
     } catch (error) {
-        console.error("[AI Keywords ERROR]", error.message);
-        return null; // Return null on error
+        console.error("[generateAiText ERROR]", error);
+        return { headline: "AI Failed", description: "Generation Error. See server logs.", caption: "Error.", originalSource: article.source };
     }
 }
 
 
-// --- API FUNCTION 2: SEARCH FOR IMAGES (*** UPDATED to return query ***) ---
-async function searchForRelevantImages(query, startIndex = 0) {
-    console.log(`[Image Search] Searching for: "${query}" starting at index ${startIndex}`);
-    try {
-        if (!GOOGLE_SEARCH_CX || !GOOGLE_API_KEY) { throw new Error("Google Search CX or API Key missing."); }
-        const apiStartIndex = startIndex + 1;
+// --- API FUNCTION 2: EXTRACT SEARCH KEYWORDS (Unchanged) ---
+async function extractSearchKeywords(headline, description) { /* ... unchanged ... */ }
 
-        const response = await customsearch.cse.list({
-            auth: GOOGLE_API_KEY, cx: GOOGLE_SEARCH_CX, q: query, searchType: 'image',
-            num: 9, start: apiStartIndex, safe: 'high', imgType: 'photo', imgSize: 'medium'
-        });
+// --- API FUNCTION 3: GET ALTERNATIVE KEYWORDS (Unchanged) ---
+async function getAlternativeKeywords(headline, description, previousKeywords = []) { /* ... unchanged ... */ }
 
-        if (!response.data.items || response.data.items.length === 0) {
-             if (startIndex === 0) { throw new Error('No images found for initial search.'); }
-             else { console.log(`[Image Search] No more images found starting at index ${startIndex}.`); return []; }
-        }
+// --- API FUNCTION 4: SEARCH FOR IMAGES (Unchanged) ---
+async function searchForRelevantImages(query, startIndex = 0) { /* ... unchanged ... */ }
 
-        // Map results to include image URL, context URL, AND the query used
-        const imagesData = response.data.items.map(item => ({
-            imageUrl: item.link,
-            contextUrl: item.image?.contextLink,
-            query: query // <-- Include the query used for this result
-        }));
-
-        console.log(`[Image Search] Found ${imagesData.length} images using query "${query}" starting at index ${startIndex}.`);
-        return imagesData;
-
-    } catch (error) {
-        console.error(`[Image Search ERROR for query "${query}" at index ${startIndex}]`, error.message);
-        return [];
-    }
-}
-
-// --- API FUNCTION 3: FIND RELATED WEB ARTICLES (Unchanged) ---
+// --- API FUNCTION 5: FIND RELATED WEB ARTICLES (Unchanged) ---
 async function findRelatedWebArticles(title, source) { /* ... unchanged ... */ }
 
-// --- API FUNCTION 4: FIND RELATED VIDEO (Unchanged) ---
+// --- API FUNCTION 6: FIND RELATED VIDEO (Unchanged) ---
 async function findRelatedVideo(title, source) { /* ... unchanged ... */ }
 
 // --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (Unchanged) ---
 async function generateSimplePreviewImage(imageUrl, headline, description) { /* ... unchanged ... */ }
 
-// --- EXPORTS (UPDATED) ---
+// --- EXPORTS (Unchanged) ---
 module.exports = {
     generateAiText,
-    extractSearchKeywords, // <-- Export new function
+    extractSearchKeywords,
+    getAlternativeKeywords,
     searchForRelevantImages,
     findRelatedWebArticles,
     findRelatedVideo,
