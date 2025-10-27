@@ -288,24 +288,88 @@ async function findRelatedVideo(title, source) {
     } catch (error) { console.error(`[Video Search ERROR]`, error.message); return null; }
 }
 
-// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE ---
+// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (ADD MORE LOGGING) ---
 async function generateSimplePreviewImage(imageUrl, headline, description) {
-    // ... (This function remains the same, ensure Math.round(compositeTop) is used) ...
+    // --- Log Entry and Inputs ---
+    console.log("--- generateSimplePreviewImage: Function START ---");
+    console.log(`[generateSimplePreviewImage] INPUT imageUrl: ${imageUrl}`);
+    console.log(`[generateSimplePreviewImage] INPUT headline: ${headline}`);
+    console.log(`[generateSimplePreviewImage] INPUT description: ${description}`);
+    // --- End Log ---
+
     try {
-        // ... fetch image ...
-        // ... prepare text (escapeXml, wrapText) ...
-        // ... generate SVG ...
-        // ... composite image ...
-        const compositeTop = Math.round(800 - overlayHeight - 15); // Make sure Math.round is here
+        // --- Input Validation ---
+        if (!imageUrl || typeof imageUrl !== 'string') {
+             console.log("[generateSimplePreviewImage] Validation Failed: Invalid imageUrl."); // Log validation fail
+             throw new Error('Invalid or missing imageUrl');
+        }
+         const headlineText = typeof headline === 'string' ? headline : '';
+         const descText = typeof description === 'string' ? description : '';
+         console.log("[generateSimplePreviewImage] Inputs validated."); // Log validation pass
+        // --- End Input Validation ---
+
+        console.log(`[generateSimplePreviewImage] Fetching image: ${imageUrl}`);
+        const response = await fetch(imageUrl);
+        console.log(`[generateSimplePreviewImage] Image fetch response status: ${response.status}`); // Log fetch status
+        if (!response.ok) {
+            console.log(`[generateSimplePreviewImage] Fetch Failed with status ${response.status}.`); // Log fetch fail
+            throw new Error(`Fetch failed for ${imageUrl}: ${response.statusText}`);
+        }
+        const imageBuffer = await response.buffer();
+        console.log(`[generateSimplePreviewImage] Image fetched successfully (Buffer size: ${imageBuffer.length}).`);
+
+        // --- Text Preparation ---
+        const firstSentenceRaw = descText.split(/[.!?]/)[0];
+        const fullFirstSentence = firstSentenceRaw ? firstSentenceRaw.trim() + '.' : '';
+        const sentenceLines = wrapText(fullFirstSentence, 80);
+        const escapedSentenceLines = sentenceLines.map(line => escapeXml(line));
+        const cleanedHeadlineRaw = headlineText.replace(/^\*\*|\*\*$/g, '').trim();
+        const headlineLines = wrapText(cleanedHeadlineRaw, 40);
+        const escapedHeadlineLines = headlineLines.map(line => escapeXml(line));
+        console.log("[generateSimplePreviewImage] Text prepared and escaped.");
+        // --- End Text Preparation ---
+
+        // --- SVG Generation ---
+        const headlineFontSize = 28; const sentenceFontSize = 18; const lineSpacing = 1.2;
+        const textBlockSpacing = 10; const padding = 15;
+        const headlineHeight = escapedHeadlineLines.length * headlineFontSize + (escapedHeadlineLines.length > 1 ? (escapedHeadlineLines.length - 1) * headlineFontSize * (lineSpacing - 1) : 0);
+        const sentenceHeight = escapedSentenceLines.length * sentenceFontSize + (escapedSentenceLines.length > 1 ? (escapedSentenceLines.length - 1) * sentenceFontSize * (lineSpacing - 1) : 0);
+        const totalTextHeight = headlineHeight + sentenceHeight + textBlockSpacing;
+        const overlayHeight = Math.max(110, totalTextHeight + padding * 2);
+        let headlineTspans = ''; escapedHeadlineLines.forEach((line, index) => { const dy = index === 0 ? 0 : `${lineSpacing}em`; headlineTspans += `<tspan x="${padding}" dy="${dy}">${line}</tspan>`; });
+        let sentenceTspans = ''; escapedSentenceLines.forEach((line, index) => { const dy = index === 0 ? 0 : `${lineSpacing}em`; sentenceTspans += `<tspan x="${padding}" dy="${dy}">${line}</tspan>`; });
+        const headlineStartY = padding + headlineFontSize; const sentenceStartY = headlineStartY + headlineHeight + textBlockSpacing;
+        const svgOverlay = `<svg width="800" height="${overlayHeight}"><rect x="0" y="0" width="800" height="${overlayHeight}" fill="#000000" opacity="0.7"/><text y="${headlineStartY}" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: ${headlineFontSize}px; font-weight: 900;" fill="#FFFFFF">${headlineTspans}</text><text y="${sentenceStartY}" style="font-family: Arial, sans-serif; font-size: ${sentenceFontSize}px;" fill="#DDDDDD">${sentenceTspans}</text></svg>`;
+        console.log("[generateSimplePreviewImage] SVG overlay generated.");
+        // --- End SVG Generation ---
+
+        console.log("[generateSimplePreviewImage] Processing image with Sharp...");
+        const compositeTop = Math.round(800 - overlayHeight - 15);
+        console.log(`[generateSimplePreviewImage] Overlay height: ${overlayHeight}, Composite top: ${compositeTop}`);
+
         const previewImageBuffer = await sharp(imageBuffer)
             .resize({ width: 800, height: 800, fit: 'cover' })
-            .composite([{ input: Buffer.from(svgOverlay), top: compositeTop, left: 0 }]) // Use rounded value
+            .composite([{ input: Buffer.from(svgOverlay), top: compositeTop, left: 0 }])
             .png().toBuffer();
-        // ... save image ...
-        return `/${filename}`;
-    } catch (error) { /* ... error handling ... */ }
-}
+        console.log("[generateSimplePreviewImage] Image processing complete.");
 
+        const filename = `preview_${Date.now()}.png`;
+        const imagePath = path.join(process.cwd(), 'public', filename);
+        await fs.writeFile(imagePath, previewImageBuffer);
+        console.log(`[generateSimplePreviewImage] Success: Image saved to ${imagePath}`);
+        console.log("--- generateSimplePreviewImage: Function END (Success) ---"); // Log Success End
+        return `/${filename}`;
+
+    } catch (error) {
+        // --- Log Error Explicitly ---
+        console.error("--- generateSimplePreviewImage: CATCH BLOCK ENTERED ---"); // Log Catch Entry
+        console.error("[generateSimplePreviewImage ERROR RAW]", error); // Log the raw error object
+        console.error(`[generateSimplePreviewImage ERROR Message]: ${error.message}`); // Log just the message
+        console.log("--- generateSimplePreviewImage: Function END (Error) ---"); // Log Error End
+        // --- End Log ---
+        return '/fallback.png'; // Return fallback path on error
+    }
+}
 
 // --- EXPORTS ---
 // Ensure this block is at the VERY END of the file
