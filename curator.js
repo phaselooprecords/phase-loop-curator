@@ -1,9 +1,26 @@
-// curator.js (FIXED: Correctly access nested Gemini response text)
+require('dotenv').config();
+// --- *** THIS LINE MUST BE PRESENT AND CORRECT *** ---
+const { GoogleGenAI } = require('@google/genai');
+// --- *** END CHECK *** ---
+const { google } = require('googleapis');
+const path = require('path');
+const sharp = require('sharp');
+const fs = require('fs/promises');
+const fetch = require('node-fetch');
 
-// ... (require statements, other functions remain the same) ...
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// --- API CLIENTS SETUP ---
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }); // This line needs GoogleGenAI
 const model = 'gemini-2.5-flash';
-// ... (rest of setup) ...
+const customsearch = google.customsearch('v1');
+const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
+const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
+
+// ... (Rest of the file remains the same) ...
+
+// --- HELPER FUNCTIONS ---
+function escapeXml(unsafe) { /* ... */ }
+function wrapText(text, maxCharsPerLine) { /* ... */ }
+
 
 // --- API FUNCTION 1: GENERATE AI TEXT (*** RESPONSE ACCESS FIXED ***) ---
 async function generateAiText(article) {
