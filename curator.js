@@ -126,40 +126,42 @@ async function generateAiText(article) {
     }
 }
 
-// --- API FUNCTION 2: EXTRACT SEARCH KEYWORDS ---
+// --- API FUNCTION 2: EXTRACT SEARCH KEYWORDS (*** RESPONSE ACCESS FIXED ***) ---
 async function extractSearchKeywords(headline, description) {
     console.log(`[AI Keywords] Extracting keywords from: "${headline}" / "${description}"`);
     const inputText = `Headline: ${headline}\nDescription: ${description}`;
     const prompt = `
         Analyze the following text about a music news item. Identify the main subject(s) (artist, event, topic).
         Based ONLY on the main subject(s), provide the BEST concise keyword phrase (max 4 words) suitable for a Google Image Search to find relevant photos of that subject.
-        Examples:
-        - Input: Headline: **Taylor Swift's Eras Tour Continues** Description: Taylor Swift performed her latest hits... Output: Taylor Swift Eras Tour
-        - Input: Headline: **New Aphex Twin EP Announced** Description: Aphex Twin is releasing a new EP... Output: Aphex Twin
-        - Input: Headline: **Festival Lineup Revealed** Description: The Coachella festival announced headliners including... Output: Coachella lineup
-        - Input: Headline: **BOYNEXTDOOR: Authenticity Algorithm Calibrated** Description: BOYNEXTDOOR details their commitment... Output: BOYNEXTDOOR band
-
-        TEXT TO ANALYZE:
-        "${inputText}"
-
+        Examples: ...
+        TEXT TO ANALYZE: "${inputText}"
         OUTPUT ONLY the keyword phrase.`;
 
     try {
-        const response = await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }] });
-        // --- Access text correctly for non-JSON response ---
+        const generationResult = await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }] });
+        console.log("[AI Keywords] Received response from Gemini.");
+
+        // --- *** CORRECTED ACCESS PATH *** ---
         let keywords = null;
-         try {
-             if (response?.response?.candidates?.[0]?.content?.parts?.[0]?.text && typeof response.response.candidates[0].content.parts[0].text === 'string') {
-                  keywords = response.response.candidates[0].content.parts[0].text.trim().replace(/[\*\"]/g, '');
-             } else {
-                 console.error("[AI Keywords ERROR] Unexpected Gemini response structure:", JSON.stringify(response, null, 2));
+        try {
+            if (generationResult &&
+                generationResult.candidates &&
+                generationResult.candidates.length > 0 &&
+                generationResult.candidates[0].content &&
+                generationResult.candidates[0].content.parts &&
+                generationResult.candidates[0].content.parts.length > 0 &&
+                typeof generationResult.candidates[0].content.parts[0].text === 'string'
+            ) {
+                 keywords = generationResult.candidates[0].content.parts[0].text.trim().replace(/[\*\"]/g, '');
+            } else {
+                 console.error("[AI Keywords ERROR] Unexpected Gemini response structure:", JSON.stringify(generationResult, null, 2));
                  throw new Error("Unexpected Gemini response structure for keywords.");
-             }
-         } catch (accessError) {
+            }
+        } catch (accessError) {
               console.error("[AI Keywords ERROR] Error accessing nested keyword response text:", accessError);
               throw new Error("Error processing Gemini keyword response structure.");
          }
-         // --- End Access ---
+         // --- *** END CORRECTION *** ---
 
         console.log(`[AI Keywords] Extracted Keywords: "${keywords}"`);
         if (!keywords || keywords.toLowerCase().includes('cannot fulfill')) {
@@ -168,12 +170,12 @@ async function extractSearchKeywords(headline, description) {
         }
         return keywords;
     } catch (error) {
-        console.error("[AI Keywords ERROR]", error.message);
+        console.error("[AI Keywords CATCH BLOCK ERROR]", error.message);
         return null;
     }
 }
 
-// --- API FUNCTION 3: GET ALTERNATIVE KEYWORDS ---
+// --- API FUNCTION 3: GET ALTERNATIVE KEYWORDS (*** RESPONSE ACCESS FIXED ***) ---
 async function getAlternativeKeywords(headline, description, previousKeywords = []) {
     const inputText = `Headline: ${headline}\nDescription: ${description}`;
     const previousKeywordsString = previousKeywords.length > 0
@@ -181,26 +183,27 @@ async function getAlternativeKeywords(headline, description, previousKeywords = 
         : "This is the first request for alternative keywords.";
     console.log(`[AI AltKeywords] Requesting alternative keywords, avoiding: ${previousKeywordsString}`);
     const prompt = `
-        Analyze the following music news headline and description:
-        "${inputText}"
-
+        Analyze the following music news headline and description: "${inputText}"
         ${previousKeywordsString}
-        The user needs a DIFFERENT, concise keyword phrase (max 4 words) suitable for a Google Image Search to find relevant photos. Focus on a potentially different subject, angle, or specific detail mentioned.
-
-        Examples of good alternatives:
-        - If previous was "Taylor Swift Eras Tour", suggest "Taylor Swift performance" or "Eras Tour stage".
-        - If previous was "Aphex Twin", suggest "Richard D James live" or "Aphex Twin album art".
-        - If previous was "BOYNEXTDOOR band", suggest "BOYNEXTDOOR music video" or "BOYNEXTDOOR members".
-
+        The user needs a DIFFERENT, concise keyword phrase (max 4 words) suitable for a Google Image Search...
         OUTPUT ONLY the new alternative keyword phrase. Do not include quotation marks.`;
 
     try {
         const generationResult = await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }] });
-        // --- Access text correctly ---
-         let newKeywords = null;
-          try {
-              if (generationResult?.response?.candidates?.[0]?.content?.parts?.[0]?.text && typeof generationResult.response.candidates[0].content.parts[0].text === 'string') {
-                   newKeywords = generationResult.response.candidates[0].content.parts[0].text.trim().replace(/[\*\"]/g, '');
+        console.log("[AI AltKeywords] Received response from Gemini.");
+
+        // --- *** CORRECTED ACCESS PATH *** ---
+        let newKeywords = null;
+        try {
+            if (generationResult &&
+                generationResult.candidates &&
+                generationResult.candidates.length > 0 &&
+                generationResult.candidates[0].content &&
+                generationResult.candidates[0].content.parts &&
+                generationResult.candidates[0].content.parts.length > 0 &&
+                typeof generationResult.candidates[0].content.parts[0].text === 'string'
+            ) {
+                   newKeywords = generationResult.candidates[0].content.parts[0].text.trim().replace(/[\*\"]/g, '');
               } else {
                   console.error("[AI AltKeywords ERROR] Unexpected Gemini response structure:", JSON.stringify(generationResult, null, 2));
                   throw new Error("Unexpected Gemini response structure for alt keywords.");
@@ -209,20 +212,21 @@ async function getAlternativeKeywords(headline, description, previousKeywords = 
                console.error("[AI AltKeywords ERROR] Error accessing nested alt keyword response text:", accessError);
                throw new Error("Error processing Gemini alt keyword response structure.");
           }
-          // --- End Access ---
+          // --- *** END CORRECTION *** ---
+
+        console.log(`[AI AltKeywords] Raw Extracted Text: "${newKeywords}"`); // Log before validation
 
         if (!newKeywords || newKeywords.toLowerCase().includes('cannot fulfill') || previousKeywords.includes(newKeywords)) {
             console.warn('[AI AltKeywords] Extraction failed, returned invalid, or repeated keywords.');
             return null;
         }
-        console.log(`[AI AltKeywords] Extracted Alternative Keywords: "${newKeywords}"`);
+        console.log(`[AI AltKeywords] Valid Alternative Keywords: "${newKeywords}"`);
         return newKeywords;
     } catch (error) {
-        console.error("[AI AltKeywords ERROR]", error.message);
+        console.error("[AI AltKeywords CATCH BLOCK ERROR]", error.message);
         return null;
     }
 }
-
 
 // --- API FUNCTION 4: SEARCH FOR IMAGES ---
 async function searchForRelevantImages(query, startIndex = 0) {
