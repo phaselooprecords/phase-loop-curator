@@ -110,5 +110,11 @@ async function generateAiText(article) {
 // --- EXPORTS ---
 module.exports = {
     generateAiText,
-    // ... other exports
+    extractSearchKeywords,
+    getAlternativeKeywords,
+    searchForRelevantImages,
+    findRelatedWebArticles,
+    findRelatedVideo,
+    generateSimplePreviewImage
 };
+// --- *** END EXPORTS *** ---
