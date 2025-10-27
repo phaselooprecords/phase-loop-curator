@@ -291,88 +291,94 @@ async function findRelatedVideo(title, source) {
 // --- *** UPDATED UTILITY FUNCTION: GENERATE PREVIEW IMAGE *** ---
 async function generateSimplePreviewImage(imageUrl, headline, description) {
     console.log(`[Simple Preview] Starting preview generation.`);
-    // ... (Input logging unchanged) ...
+    console.log(`[Simple Preview] Image URL: ${imageUrl}`);
+    console.log(`[Simple Preview] Raw Headline:`, headline);
+    console.log(`[Simple Preview] Raw Description:`, description);
 
     try {
-        // ... (Input validation and image fetching unchanged) ...
+        if (!imageUrl || typeof imageUrl !== 'string') { throw new Error('Invalid imageUrl'); }
+        const headlineText = typeof headline === 'string' ? headline : '';
+        const descText = typeof description === 'string' ? description : '';
+
+        console.log(`[Simple Preview] Fetching image: ${imageUrl}`);
+        const response = await fetch(imageUrl);
+        if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
         const imageBuffer = await response.buffer();
+        console.log(`[Simple Preview] Image fetched.`);
+
+        // --- Get Original Dimensions ---
         const metadata = await sharp(imageBuffer).metadata();
         const originalWidth = metadata.width;
         const originalHeight = metadata.height;
-        if (!originalWidth || !originalHeight) throw new Error('Could not read image dimensions.');
+        if (!originalWidth || !originalHeight) {
+             throw new Error('Could not read image dimensions.');
+         }
         console.log(`[Simple Preview] Original Dimensions: ${originalWidth}x${originalHeight}`);
 
-        // --- Determine Target Dimensions (Unchanged) ---
+        // --- Determine Target Dimensions (Max Width 800px, No Upscaling) ---
         const maxWidth = 800;
         let targetWidth = originalWidth;
         let targetHeight = originalHeight;
+
         if (originalWidth > maxWidth) {
             targetWidth = maxWidth;
+            // Calculate height based on aspect ratio
             targetHeight = Math.round(originalHeight * (maxWidth / originalWidth));
+            console.log(`[Simple Preview] Resizing down to: ${targetWidth}x${targetHeight}`);
+        } else {
+            console.log(`[Simple Preview] Using original size (smaller than max width).`);
         }
 
-        // --- Resize Image Buffer (Unchanged) ---
-        let processedImageBuffer = imageBuffer;
+        // --- Resize Image Buffer (Only if necessary) ---
+        let processedImageBuffer = imageBuffer; // Start with original
         if (originalWidth > maxWidth) {
-             processedImageBuffer = await sharp(imageBuffer).resize({ width: targetWidth, height: targetHeight, fit: 'inside' }).toBuffer();
+             processedImageBuffer = await sharp(imageBuffer)
+                .resize({
+                    width: targetWidth,
+                    height: targetHeight,
+                    fit: 'inside' // Ensures no upscaling, maintains aspect ratio
+                })
+                .toBuffer();
+             console.log(`[Simple Preview] Image resized.`);
         }
-        console.log(`[Simple Preview] Final Image Dimensions: ${targetWidth}x${targetHeight}`);
 
-        // --- Text Preparation (Adjusted sizes and wrapping) ---
-        // *** REDUCED FONT SIZES ***
-        const headlineFontSize = 24; // Was 28
-        const sentenceFontSize = 16; // Was 18
-
-        // Adjust character estimates based on new sizes and targetWidth
-        const headlineCharsPerLine = Math.round(targetWidth / (headlineFontSize * 0.65)); // Adjust multiplier based on visual testing
-        const sentenceCharsPerLine = Math.round(targetWidth / (sentenceFontSize * 0.55)); // Adjust multiplier
+        // --- Text Preparation (Adjust wrapping based on targetWidth) ---
+        // Estimate characters per line based on width (adjust multiplier as needed)
+        const headlineCharsPerLine = Math.round(targetWidth / 20); // Approx 20px per char avg for large font
+        const sentenceCharsPerLine = Math.round(targetWidth / 10); // Approx 10px per char avg for smaller font
 
         const cleanedHeadlineRaw = headlineText.replace(/^\*\*|\*\*$/g, '').trim();
-        // Allow headline up to 2 lines
-        const headlineLines = wrapText(cleanedHeadlineRaw, headlineCharsPerLine, 2);
+        const headlineLines = wrapText(cleanedHeadlineRaw, headlineCharsPerLine);
         const escapedHeadlineLines = headlineLines.map(line => escapeXml(line));
 
         const firstSentenceRaw = descText.split(/[.!?]/)[0];
         const fullFirstSentence = firstSentenceRaw ? firstSentenceRaw.trim() + '.' : '';
-         // Allow description up to 2 lines
-        const sentenceLines = wrapText(fullFirstSentence, sentenceCharsPerLine, 2);
+        const sentenceLines = wrapText(fullFirstSentence, sentenceCharsPerLine);
         const escapedSentenceLines = sentenceLines.map(line => escapeXml(line));
         console.log("[Simple Preview] Text prepared, wrapped, and escaped.");
-        console.log(`[Simple Preview] Headline Chars/Line: ${headlineCharsPerLine}, Lines:`, escapedHeadlineLines);
-        console.log(`[Simple Preview] Sentence Chars/Line: ${sentenceCharsPerLine}, Lines:`, escapedSentenceLines);
 
-
-        // --- Dynamic SVG Generation (Adjusted spacing/height) ---
-        const lineSpacingHeadline = 1.3; // Slightly more spacing for headline
-        const lineSpacingSentence = 1.3; // Slightly more spacing for sentence
-        const textBlockSpacing = 8; // Reduced space between blocks slightly
+        // --- Dynamic SVG Generation ---
+        const headlineFontSize = 28; // Keep desired font size
+        const sentenceFontSize = 18;
+        const lineSpacing = 1.2;
+        const textBlockSpacing = 10;
         const padding = 15;
 
-        // Calculate height based on actual lines and spacing
-        const headlineLineHeight = headlineFontSize * lineSpacingHeadline;
-        const sentenceLineHeight = sentenceFontSize * lineSpacingSentence;
-        const headlineBlockHeight = escapedHeadlineLines.length * headlineLineHeight - (escapedHeadlineLines.length > 1 ? headlineFontSize * (lineSpacingHeadline - 1) : 0) ; // More accurate height calc
-        const sentenceBlockHeight = escapedSentenceLines.length * sentenceLineHeight - (escapedSentenceLines.length > 1 ? sentenceFontSize * (lineSpacingSentence - 1) : 0);
-        const totalTextHeight = headlineBlockHeight + sentenceBlockHeight + (escapedSentenceLines.length > 0 ? textBlockSpacing : 0); // Add spacing only if sentence exists
-        const overlayHeight = Math.max(80, totalTextHeight + padding * 2); // Adjusted min height slightly
+        // Calculate needed height
+        const headlineHeight = escapedHeadlineLines.length * headlineFontSize + (escapedHeadlineLines.length > 1 ? (escapedHeadlineLines.length - 1) * headlineFontSize * (lineSpacing - 1) : 0);
+        const sentenceHeight = escapedSentenceLines.length * sentenceFontSize + (escapedSentenceLines.length > 1 ? (escapedSentenceLines.length - 1) * sentenceFontSize * (lineSpacing - 1) : 0);
+        const totalTextHeight = headlineHeight + sentenceHeight + textBlockSpacing;
+        const overlayHeight = Math.max(110, totalTextHeight + padding * 2); // Dynamic height
 
-        // Generate TSPANs using adjusted line heights
-        let headlineTspans = '';
-        escapedHeadlineLines.forEach((line, index) => {
-            const dy = index === 0 ? 0 : `${lineSpacingHeadline}em`;
-            headlineTspans += `<tspan x="${padding}" dy="${dy}">${line}</tspan>`;
-        });
-        let sentenceTspans = '';
-        escapedSentenceLines.forEach((line, index) => {
-            const dy = index === 0 ? 0 : `${lineSpacingSentence}em`;
-            sentenceTspans += `<tspan x="${padding}" dy="${dy}">${line}</tspan>`;
-        });
+        // Generate TSPANs (same logic)
+        let headlineTspans = ''; escapedHeadlineLines.forEach((line, index) => { const dy = index === 0 ? 0 : `${lineSpacing}em`; headlineTspans += `<tspan x="${padding}" dy="${dy}">${line}</tspan>`; });
+        let sentenceTspans = ''; escapedSentenceLines.forEach((line, index) => { const dy = index === 0 ? 0 : `${lineSpacing}em`; sentenceTspans += `<tspan x="${padding}" dy="${dy}">${line}</tspan>`; });
 
-        // Calculate Y positions (baseline of the first line)
-        const headlineStartY = padding + headlineFontSize; // Adjusted based on font size
-        // Calculate sentence start based on calculated headline block height
-        const sentenceStartY = headlineStartY + (escapedHeadlineLines.length > 1 ? headlineBlockHeight - headlineFontSize * (lineSpacingHeadline -1) : headlineFontSize) + (escapedSentenceLines.length > 0 ? textBlockSpacing : 0); // Corrected calculation
+        // Calculate Y positions (same logic)
+        const headlineStartY = padding + headlineFontSize;
+        const sentenceStartY = headlineStartY + headlineHeight + textBlockSpacing;
 
+        // Create SVG with dynamic width
         const svgOverlay = `<svg width="${targetWidth}" height="${overlayHeight}">
             <rect x="0" y="0" width="${targetWidth}" height="${overlayHeight}" fill="#000000" opacity="0.7"/>
             <text y="${headlineStartY}" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: ${headlineFontSize}px; font-weight: 900;" fill="#FFFFFF">
@@ -384,21 +390,23 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         </svg>`;
         console.log(`[Simple Preview] Generated SVG Overlay (${targetWidth}x${overlayHeight}).`);
 
-        // --- Composite Image (Adjusted position slightly) ---
+        // --- Composite Image ---
         console.log(`[Simple Preview] Compositing overlay...`);
-        const compositeTop = Math.round(targetHeight - overlayHeight - 10); // Position 10px from bottom
+        // Calculate top position based on targetHeight
+        const compositeTop = Math.round(targetHeight - overlayHeight - 15); // Position 15px from bottom
         console.log(`[Simple Preview] Target height: ${targetHeight}, Overlay height: ${overlayHeight}, Composite top: ${compositeTop}`);
 
-        const finalImageBuffer = await sharp(processedImageBuffer)
+        const finalImageBuffer = await sharp(processedImageBuffer) // Use the potentially resized buffer
             .composite([{
                 input: Buffer.from(svgOverlay),
-                top: compositeTop < 0 ? 0 : compositeTop,
+                top: compositeTop < 0 ? 0 : compositeTop, // Ensure top isn't negative if overlay is tall
                 left: 0
             }])
-            .png().toBuffer();
+            .png() // Keep outputting as PNG for consistency
+            .toBuffer();
         console.log("[Simple Preview] Image processing complete.");
 
-        // --- Save and Return (Unchanged) ---
+        // --- Save and Return ---
         const filename = `preview_${Date.now()}.png`;
         const imagePath = path.join(process.cwd(), 'public', filename);
         await fs.writeFile(imagePath, finalImageBuffer);
@@ -406,7 +414,13 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         console.log("--- generateSimplePreviewImage: Function END (Success) ---");
         return `/${filename}`;
 
-    } catch (error) { /* ... error handling unchanged ... */ }
+    } catch (error) {
+        console.error("--- generateSimplePreviewImage: CATCH BLOCK ENTERED ---");
+        console.error("[generateSimplePreviewImage ERROR RAW]", error);
+        console.error(`[generateSimplePreviewImage ERROR Message]: ${error.message}`);
+        console.log("--- generateSimplePreviewImage: Function END (Error) ---");
+        return '/fallback.png';
+    }
 }
 
 // --- EXPORTS ---
