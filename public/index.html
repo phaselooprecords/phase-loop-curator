@@ -190,6 +190,81 @@
 
         // ... (Rest of your JavaScript functions: handleArticleTap, fetchAiText, etc.)
 
+// --- *** ENSURE THIS FUNCTION DEFINITION EXISTS AND IS SPELLED CORRECTLY *** ---
+        async function handleArticleTap(article) {
+             console.log("handleArticleTap called for:", article.title); // Add log to confirm it's called
+             currentArticleData = article;
+             currentCuratedData = null;
+             currentVideoUrl = null;
+             simplePreviewImagePath = null;
+             currentSearchKeywords = [];
+             currentKeywordIndex = 0;
+             refreshClicksOnCurrentKeyword = 0;
+             currentImageStartIndex = 0;
+             document.getElementById('refresh-images-btn').disabled = true;
+
+             setView('select');
+
+             // Reset UI sections
+             document.getElementById('preview-headline').innerText = "Generating AI text...";
+             document.getElementById('preview-description').innerText = "";
+             document.getElementById('preview-caption-text').innerText = "";
+             document.getElementById('image-selection-area').innerHTML = "<p>Generating AI text to determine search query...</p>";
+             document.getElementById('related-articles-list').innerHTML = "<p>Finding related articles...</p>";
+             document.getElementById('video-display-area').classList.add('hidden');
+             document.getElementById('video-player-container').innerHTML = '';
+             document.getElementById('original-image-container').classList.add('hidden');
+
+             // Set original article link
+             const originalLinkEl = document.getElementById('original-article-link');
+             originalLinkEl.href = article.link;
+             originalLinkEl.textContent = `View Original Article on ${article.source}`;
+
+             // Call AI Text FIRST
+             fetchAiText(article);
+
+             // Call other non-dependent APIs
+             fetchRelatedArticles(article.title, article.source);
+             fetchVideo(article.title, article.source, article.videoUrl);
+
+             // Handle original image
+             if (article.originalImageUrl) {
+                const originalImgEl = document.getElementById('original-image');
+                const originalImgContainer = document.getElementById('original-image-container');
+                originalImgEl.src = article.originalImageUrl;
+                originalImgEl.onclick = () => startSimplePreviewPipeline(article.originalImageUrl);
+                originalImgContainer.classList.remove('hidden');
+            }
+         }
+        // --- *** END FUNCTION DEFINITION CHECK *** ---
+
+
+        // --- Fetch AI Text ---
+        async function fetchAiText(article) { /* ... */ }
+        // --- Fetch Primary Keywords ---
+        async function fetchPrimaryKeywordsAndStartImageSearch(headline, description) { /* ... */ }
+        // --- Fetch Alternative Keywords ---
+        async function fetchAlternativeKeywords() { /* ... */ }
+        // --- Fetch Images ---
+        async function fetchImages(query, startIndex) { /* ... */ }
+        // --- Fetch Related Articles ---
+        async function fetchRelatedArticles(title, source) { /* ... */ }
+        // --- Fetch Video ---
+        async function fetchVideo(title, source, rssVideoUrl) { /* ... */ }
+        // --- Display Video ---
+        function displayVideo(videoUrl, containerId) { /* ... */ }
+        // --- Call Simple Preview API ---
+        async function startSimplePreviewPipeline(mediaUrl) { /* ... */ }
+        // --- Populate Caption Display ---
+        function populateCaptionDisplay() { /* ... */ }
+        // --- Handle Copy Caption ---
+        async function handleCopyCaption() { /* ... */ }
+        // --- Share Button Logic ---
+        async function handleShare() { /* ... */ }
+        // --- Download Button Logic ---
+        function handleDownload() { /* ... */ }
+
+
     </script>
 </body>
 </html>
