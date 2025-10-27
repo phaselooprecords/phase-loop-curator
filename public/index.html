@@ -443,8 +443,35 @@
             }
         }
 
-        // --- Populate Caption Display ---
-        function populateCaptionDisplay() { /* ... unchanged ... */ }
+	// --- Populate Caption Display (ADD LOGGING) ---
+        function populateCaptionDisplay() {
+            console.log("populateCaptionDisplay: Function called."); // Log Start
+            const captionTextArea = document.getElementById('caption-text-area');
+            if (!captionTextArea) {
+                console.error("populateCaptionDisplay Error: Text area element not found!");
+                return;
+            }
+
+            console.log("populateCaptionDisplay: currentCuratedData:", currentCuratedData); // Log the data object
+
+            if (currentCuratedData && currentCuratedData.headline !== "AI Failed") { // Also check for failure state
+                // Extract and clean data safely
+                const headline = (currentCuratedData.headline || "Headline N/A").replace(/^\*\*|\*\*$/g, '');
+                const description = currentCuratedData.description || "Description N/A";
+                const caption = currentCuratedData.caption || "Caption N/A";
+                const source = currentCuratedData.originalSource || 'Source Unknown';
+
+                 // Format the text for the text area
+                 const fullText = `${headline}\n\n${description}\n\n${caption}\n\nNews Source: ${source}`;
+                 captionTextArea.value = fullText;
+                 console.log("populateCaptionDisplay: Populated text area with AI content."); // Log Success
+
+            } else {
+                captionTextArea.value = "AI Caption data is not available or generation failed.";
+                console.log("populateCaptionDisplay: Populated text area with error/unavailable message."); // Log Failure/Unavailable
+            }
+        }
+
         // --- Handle Copy Caption ---
         async function handleCopyCaption() { /* ... unchanged ... */ }
         // --- Share Button Logic ---
