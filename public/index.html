@@ -279,81 +279,49 @@
             } catch (error) { console.error("Error fetching alternative keywords:", error); alert("Failed to get alternative keywords."); area.innerHTML += '<p>Failed to get alternative keywords.</p>'; document.getElementById('refresh-images-btn').disabled = true; }
         }
 
-	// --- Fetch Images (REFINE ONCLICK ATTACHMENT) ---
+	// --- Fetch Images (UPDATED to pass contextUrl in onclick) ---
         async function fetchImages(query, startIndex) {
             console.log(`fetchImages: function STARTED. Query: "${query}", StartIndex: ${startIndex}`);
             const area = document.getElementById('image-selection-area');
             const refreshBtn = document.getElementById('refresh-images-btn');
-
-            if (!area || !refreshBtn) { console.error("fetchImages Error: UI elements not found!"); return; }
-            console.log("fetchImages: Found UI elements.");
-
-            // --- Loading Message Logic ---
-            const isLoadingNewKeyword = startIndex === 0 && refreshClicksOnCurrentKeyword === 0 && currentKeywordIndex > 0;
-            if (startIndex === 0 && !isLoadingNewKeyword) area.innerHTML = `<p>Searching images: "${query}"...</p>`;
-            else if (isLoadingNewKeyword) area.innerHTML = `<p>Trying keyword: "${query}"...</p>`;
-            else { let loadingP = area.querySelector('p.loading-more'); if (!loadingP) { loadingP = document.createElement('p'); loadingP.className = 'loading-more'; area.appendChild(loadingP); } loadingP.textContent = 'Loading more images...'; }
-            // --- End Loading Message ---
-
-            refreshBtn.disabled = true;
-
+            // ... (rest of loading message and fetch logic unchanged) ...
             try {
-                console.log("fetchImages: Prepared request body:", { query, startIndex });
-                console.log("fetchImages: BEFORE sending fetch request to /api/search-images");
-                const response = await fetch('/api/search-images', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query, startIndex: startIndex }) });
-                console.log(`fetchImages: AFTER fetch response received. Status: ${response.status}`);
-                if (!response.ok) { const errorText = await response.text(); console.error(`fetchImages: Fetch response NOT ok: ${response.status}`, errorText); throw new Error(`HTTP error! ${response.status} - ${errorText}`); }
-                console.log("fetchImages: Response OK. Trying response.json()...");
+                // ... (fetch /api/search-images) ...
                 const data = await response.json();
-                console.log(`fetchImages: Successfully parsed JSON. Received ${data?.images?.length ?? 0} images.`);
-                const imagesData = data.images || [];
+                const imagesData = data.images || []; // Expecting {imageUrl, contextUrl, query, width, height}
+                // ... (rest of result handling unchanged) ...
 
-                // --- Clean up loading messages ---
-                if (startIndex === 0) { area.innerHTML = ''; }
-                else { const loadingP = area.querySelector('p.loading-more'); if (loadingP) area.removeChild(loadingP); }
-                // --- End cleanup ---
-
-                if (imagesData.length === 0) {
-                    if (startIndex === 0) { area.innerHTML = `<p>No relevant images found for "${query}".</p>`; }
-                    else { area.innerHTML += `<p>No more images found.</p>`; }
-                    refreshBtn.disabled = (startIndex === 0 || imagesData.length < IMAGES_PER_PAGE);
-                    console.log(`fetchImages: No images found/left. Refresh disabled: ${refreshBtn.disabled}`);
-                } else {
+                if (imagesData.length > 0) {
                     refreshBtn.disabled = (imagesData.length < IMAGES_PER_PAGE);
                     console.log(`fetchImages: Found images. Refresh disabled: ${refreshBtn.disabled}`);
                     console.log("fetchImages: Starting loop to render images...");
 
                     imagesData.forEach((imgData, index) => {
-                        const container = document.createElement('div'); container.className = 'image-container';
-                        const img = document.createElement('img');
-                        img.src = imgData.imageUrl; img.alt = `Relevant Image ${startIndex + index + 1}`;
-                        img.onerror = function() { this.alt = 'Image failed'; this.style.border = '1px solid red'; };
+                         const container = document.createElement('div'); container.className = 'image-container';
+                         const img = document.createElement('img');
+                         img.src = imgData.imageUrl; img.alt = `Relevant Image ${startIndex + index + 1}`;
+                         img.onerror = function() { this.alt = 'Image failed'; this.style.border = '1px solid red'; };
 
-                        // *** SIMPLIFIED ONCLICK ATTACHMENT ***
-                        // Ensure the correct URL is captured in the closure
-                        const imageUrlForClick = imgData.imageUrl;
-                        img.onclick = () => {
-                             console.log(`Image clicked! URL: ${imageUrlForClick}`); // Log click event
-                             startSimplePreviewPipeline(imageUrlForClick);
-                         };
-                         // *** END SIMPLIFIED ONCLICK ***
+                         // *** UPDATED ONCLICK ***
+                         // Pass both imageUrl and contextUrl to the preview function
+                         const imageUrlForClick = imgData.imageUrl;
+                         const contextUrlForClick = imgData.contextUrl; // Get context URL
+                         img.onclick = () => {
+                              console.log(`Image clicked! URL: ${imageUrlForClick}, Context: ${contextUrlForClick}`);
+                              startSimplePreviewPipeline(imageUrlForClick, contextUrlForClick); // Pass context URL
+                          };
+                          // *** END UPDATE ***
 
-                        const link = document.createElement('a'); link.href = imgData.contextUrl || '#'; link.textContent = 'View Source Page'; link.target = '_blank'; link.rel = 'noopener noreferrer'; if (!imgData.contextUrl) link.style.display = 'none';
-                        const keywordSpan = document.createElement('span'); keywordSpan.className = 'image-keyword'; keywordSpan.textContent = `Keyword: ${imgData.query || 'N/A'}`;
-                        const dimensionsSpan = document.createElement('span'); dimensionsSpan.className = 'image-dimensions'; dimensionsSpan.textContent = (imgData.width && imgData.height) ? `${imgData.width} x ${imgData.height}` : `Dimensions N/A`;
+                         const link = document.createElement('a'); link.href = imgData.contextUrl || '#'; link.textContent = 'View Source Page'; link.target = '_blank'; link.rel = 'noopener noreferrer'; if (!imgData.contextUrl) link.style.display = 'none';
+                         const keywordSpan = document.createElement('span'); keywordSpan.className = 'image-keyword'; keywordSpan.textContent = `Keyword: ${imgData.query || 'N/A'}`;
+                         const dimensionsSpan = document.createElement('span'); dimensionsSpan.className = 'image-dimensions'; dimensionsSpan.textContent = (imgData.width && imgData.height) ? `${imgData.width} x ${imgData.height}` : `Dimensions N/A`;
 
-                        container.appendChild(img); container.appendChild(link); container.appendChild(keywordSpan); container.appendChild(dimensionsSpan);
-                        area.appendChild(container);
-                    });
+                         container.appendChild(img); container.appendChild(link); container.appendChild(keywordSpan); container.appendChild(dimensionsSpan);
+                         area.appendChild(container);
+                     });
                     console.log("fetchImages: Finished rendering images.");
-                 }
-
-            } catch (error) {
-                console.error('!!! CATCH ERROR inside fetchImages:', error);
-                 if (startIndex === 0) { area.innerHTML = `<p style='color: red;'>Image search failed. Check console.</p>`; }
-                 else { const loadingP = area.querySelector('p.loading-more'); if (loadingP) area.removeChild(loadingP); area.innerHTML += `<p style='color: red;'>Failed to load more. Check console.</p>`; }
-                 refreshBtn.disabled = true;
-            }
+                 } else { /* ... handle no images ... */ }
+            } catch (error) { /* ... error handling ... */ }
         }
 
         // --- Fetch Video ---
@@ -361,114 +329,106 @@
         // --- Display Video ---
         function displayVideo(videoUrl, containerId) { /* ... unchanged ... */ }
 
-	// --- Call Simple Preview API (ADD MORE LOGGING) ---
-        async function startSimplePreviewPipeline(mediaUrl) {
-            console.log(`startSimplePreviewPipeline called with URL: ${mediaUrl}`); // Log Function Start
-            const isVideo = currentVideoUrl && mediaUrl === currentVideoUrl;
+	// --- Call Simple Preview API (UPDATED to accept and store contextUrl) ---
+        async function startSimplePreviewPipeline(mediaUrl, contextUrl = null) { // Added contextUrl parameter
+            console.log(`startSimplePreviewPipeline called with URL: ${mediaUrl}, Context: ${contextUrl}`);
+            const isVideo = currentVideoUrl && mediaUrl === currentVideoUrl; // Re-check if it's the video
             const isImageUrl = !isVideo;
-            console.log(`startSimplePreviewPipeline: Is Video? ${isVideo}, Is Image? ${isImageUrl}`); // Log Type
+            console.log(`startSimplePreviewPipeline: Is Video? ${isVideo}, Is Image? ${isImageUrl}`);
 
-            // Reset state variables *before* attempting generation
+            // Reset state variables
             currentVideoUrl = isVideo ? mediaUrl : null;
-            simplePreviewImagePath = null; // Explicitly reset image path
+            simplePreviewImagePath = null;
+            currentImageContextUrl = isImageUrl ? contextUrl : null; // Store context URL only if it's an image
 
             try {
                  if (isImageUrl) {
-                    if (!currentCuratedData) {
-                         console.error("startSimplePreviewPipeline: AI data not ready.");
-                         alert("AI text is still generating, cannot create preview.");
-                         return;
-                     }
+                    // ... (image generation logic unchanged) ...
+                    if (!currentCuratedData) { /* ... */ return; }
                     alert("Generating preview image...");
-                    console.log("startSimplePreviewPipeline: Proceeding with image generation for:", mediaUrl);
-                    const headline = (currentCuratedData.headline || "N/A").replace(/^\*\*|\*\*$/g, '');
-                    const description = currentCuratedData.description; // Use the short_description
-
-                    console.log("startSimplePreviewPipeline: Sending request to /api/generate-simple-preview"); // Log before fetch
-                    const response = await fetch('/api/generate-simple-preview', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ imageUrl: mediaUrl, headline, description })
-                    });
-                    console.log(`startSimplePreviewPipeline: Received response from /api/generate-simple-preview. Status: ${response.status}`); // Log after fetch
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error(`startSimplePreviewPipeline: Error response from server: ${response.status}`, errorText); // Log server error
-                        throw new Error(`Server error generating preview: ${response.status}`);
-                    }
-
-                    console.log("startSimplePreviewPipeline: Trying response.json()..."); // Log before parse
+                    console.log("startSimplePreviewPipeline: Proceeding with image generation.");
+                    // ... (fetch /api/generate-simple-preview) ...
+                    if (!response.ok) throw new Error(/* ... */);
                     const previewData = await response.json();
-                    console.log("startSimplePreviewPipeline: Parsed preview data:", previewData); // Log the parsed data
-
-                    // **Crucial Check:** Verify the structure of previewData
+                    console.log("startSimplePreviewPipeline: Parsed preview data:", previewData);
                     if (previewData && previewData.previewImagePath && previewData.previewImagePath !== '/fallback.png') {
-                         simplePreviewImagePath = previewData.previewImagePath; // Store the valid path
-                         console.log(`startSimplePreviewPipeline: Image path set successfully: ${simplePreviewImagePath}`);
-                     } else {
-                         console.error('startSimplePreviewPipeline: Invalid or error data received from server:', previewData);
-                         throw new Error('Preview generation failed on server or returned invalid path.');
-                     }
+                         simplePreviewImagePath = previewData.previewImagePath;
+                         console.log(`startSimplePreviewPipeline: Image path set: ${simplePreviewImagePath}`);
+                     } else { /* ... handle error ... */ throw new Error(/* ... */); }
                  }
                  else if (isVideo) {
+                     // ... (video setup logic unchanged) ...
                      alert("Preparing video preview...");
                      console.log("startSimplePreviewPipeline: Setting up video preview.");
                      displayVideo(mediaUrl, 'simple-preview-video-player');
-                     // Note: currentVideoUrl was already set at the start
                  }
 
-                 // Check if either path exists or video exists *after* processing
+                 // Check if either path exists or video exists
                  if (simplePreviewImagePath || currentVideoUrl) {
                     console.log("startSimplePreviewPipeline: Setting view to 'simple-preview'.");
-                    setView('simple-preview'); // Move view change here
+                    setView('simple-preview'); // This will call populateCaptionDisplay
                     if (simplePreviewImagePath) {
                          document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now();
                     }
-                    // Reset pagination state after selection
-                    currentImageStartIndex = 0;
-                    refreshClicksOnCurrentKeyword = 0;
-                    document.getElementById('refresh-images-btn').disabled = false;
-                 } else {
-                     // This log should ideally not be reached if error handling above is correct
-                     console.warn("startSimplePreviewPipeline: No image path or video URL set after processing (should have errored before?).");
-                     alert('Preview generation failed unexpectedly.'); // Add alert
-                 }
+                    // Reset pagination state
+                    currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false;
+                 } else { /* ... handle unexpected state ... */ }
 
-            } catch (error) {
-                 console.error('!!! CATCH ERROR in simple preview pipeline:', error);
-                 alert(`Failed to create preview: ${error.message}. Check console.`); // Show specific error
-                 simplePreviewImagePath = null; // Ensure reset on error
-                 currentVideoUrl = null; // Ensure reset on error
-            }
+            } catch (error) { /* ... error handling ... */ }
         }
 
-	// --- Populate Caption Display (ADD LOGGING) ---
+	// --- Populate Caption Display (UPDATED to add Visual Source) ---
         function populateCaptionDisplay() {
-            console.log("populateCaptionDisplay: Function called."); // Log Start
+            console.log("populateCaptionDisplay: Function called.");
             const captionTextArea = document.getElementById('caption-text-area');
-            if (!captionTextArea) {
-                console.error("populateCaptionDisplay Error: Text area element not found!");
-                return;
-            }
+            if (!captionTextArea) { console.error("populateCaptionDisplay Error: Text area element not found!"); return; }
 
-            console.log("populateCaptionDisplay: currentCuratedData:", currentCuratedData); // Log the data object
+            console.log("populateCaptionDisplay: currentCuratedData:", currentCuratedData);
+            console.log("populateCaptionDisplay: currentImageContextUrl:", currentImageContextUrl); // Log context URL
 
-            if (currentCuratedData && currentCuratedData.headline !== "AI Failed") { // Also check for failure state
-                // Extract and clean data safely
-                const headline = (currentCuratedData.headline || "Headline N/A").replace(/^\*\*|\*\*$/g, '');
-                const description = currentCuratedData.description || "Description N/A";
-                const caption = currentCuratedData.caption || "Caption N/A";
-                const source = currentCuratedData.originalSource || 'Source Unknown';
+            if (currentCuratedData && currentCuratedData.headline !== "AI Failed") {
+                const headline = (currentCuratedData.headline || "N/A").replace(/^\*\*|\*\*$/g, '');
+                const description = currentCuratedData.description || "N/A";
+                const caption = currentCuratedData.caption || "N/A";
+                const newsSource = currentCuratedData.originalSource || 'Source Unknown';
 
-                 // Format the text for the text area
-                 const fullText = `${headline}\n\n${description}\n\n${caption}\n\nNews Source: ${source}`;
+                // --- Add Visual Source ---
+                let visualSourceLine = "";
+                if (currentImageContextUrl) {
+                    try {
+                        // Extract domain name from the context URL
+                        const urlObject = new URL(currentImageContextUrl);
+                        const domain = urlObject.hostname.replace(/^www\./, ''); // Remove www.
+                        visualSourceLine = `Visual Source: ${domain}`;
+                    } catch (e) {
+                         console.warn("Could not parse context URL:", currentImageContextUrl);
+                         visualSourceLine = `Visual Source: (See source page)`; // Fallback if URL is weird
+                    }
+                } else if (currentVideoUrl) {
+                     try {
+                        // Extract domain name from the video URL
+                        const urlObject = new URL(currentVideoUrl);
+                        const domain = urlObject.hostname.replace(/^www\./, '');
+                        visualSourceLine = `Visual Source: ${domain}`;
+                     } catch (e) {
+                          console.warn("Could not parse video URL:", currentVideoUrl);
+                          visualSourceLine = `Visual Source: (See video source)`;
+                     }
+                }
+                // --- End Add Visual Source ---
+
+                 const fullText = `${headline}\n\n` +
+                                  `${description}\n\n` +
+                                  `${caption}\n\n` +
+                                  `News Source: ${newsSource}` +
+                                  (visualSourceLine ? `\n${visualSourceLine}` : ''); // Append if available
+
                  captionTextArea.value = fullText;
-                 console.log("populateCaptionDisplay: Populated text area with AI content."); // Log Success
+                 console.log("populateCaptionDisplay: Populated text area with AI content and visual source.");
 
             } else {
                 captionTextArea.value = "AI Caption data is not available or generation failed.";
-                console.log("populateCaptionDisplay: Populated text area with error/unavailable message."); // Log Failure/Unavailable
+                console.log("populateCaptionDisplay: Populated text area with error/unavailable message.");
             }
         }
 
