@@ -228,18 +228,37 @@ async function getAlternativeKeywords(headline, description, previousKeywords = 
     }
 }
 
-// --- API FUNCTION 4: SEARCH FOR IMAGES ---
+// --- API FUNCTION 4: SEARCH FOR IMAGES (RETURN DIMENSIONS) ---
 async function searchForRelevantImages(query, startIndex = 0) {
     console.log(`[Image Search] Searching for: "${query}" starting at index ${startIndex}`);
     try {
         if (!GOOGLE_SEARCH_CX || !GOOGLE_API_KEY) { throw new Error("Google Search CX or API Key missing."); }
         const apiStartIndex = startIndex + 1;
         const response = await customsearch.cse.list({ auth: GOOGLE_API_KEY, cx: GOOGLE_SEARCH_CX, q: query, searchType: 'image', num: 9, start: apiStartIndex, safe: 'high', imgType: 'photo', imgSize: 'medium' });
-        if (!response.data.items || response.data.items.length === 0) { if (startIndex === 0) { throw new Error('No images found.'); } else { console.log(`[Image Search] No more images found.`); return []; } }
-        const imagesData = response.data.items.map(item => ({ imageUrl: item.link, contextUrl: item.image?.contextLink, query: query }));
+
+        if (!response.data.items || response.data.items.length === 0) {
+             // ... (no results handling - unchanged) ...
+             if (startIndex === 0) { throw new Error('No images found.'); } else { console.log(`[Image Search] No more images found.`); return []; }
+        }
+
+        // Map results to include dimensions
+        const imagesData = response.data.items.map(item => ({
+            imageUrl: item.link,
+            contextUrl: item.image?.contextLink,
+            query: query,
+            // *** ADD DIMENSIONS ***
+            width: item.image?.width,
+            height: item.image?.height
+            // *** END ADD ***
+        }));
+
         console.log(`[Image Search] Found ${imagesData.length} images.`);
-        return imagesData;
-    } catch (error) { console.error(`[Image Search ERROR]`, error.message); return []; }
+        return imagesData; // Now returns { imageUrl, contextUrl, query, width, height }
+
+    } catch (error) {
+        console.error(`[Image Search ERROR]`, error.message);
+        return [];
+    }
 }
 
 // --- API FUNCTION 5: FIND RELATED WEB ARTICLES ---

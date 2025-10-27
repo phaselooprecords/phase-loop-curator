@@ -33,7 +33,12 @@
         #original-article-link-container { margin-bottom: 20px; text-align: center; font-size: 0.9em;}
         #original-article-link-container a { color: #87CEFA; text-decoration: none; }
         #original-article-link-container a:hover { text-decoration: underline; }
-
+	
+	/* Add this within the <style> tags */
+        .image-dimensions {
+             display: block; color: #666; font-size: 0.6em; text-align: center;
+             margin-top: 1px;
+        }
 
         #original-image-container img { width: 100%; max-width: 400px; margin: 10px auto; display: block; border: 2px solid #444; cursor: pointer; }
         #related-articles-list { display: flex; flex-direction: column; gap: 8px; }
@@ -274,46 +279,152 @@
             } catch (error) { console.error("Error fetching alternative keywords:", error); alert("Failed to get alternative keywords."); area.innerHTML += '<p>Failed to get alternative keywords.</p>'; document.getElementById('refresh-images-btn').disabled = true; }
         }
 
-        // --- Fetch Images ---
+	// --- Fetch Images (DISPLAY DIMENSIONS) ---
         async function fetchImages(query, startIndex) {
-            const area = document.getElementById('image-selection-area'); const refreshBtn = document.getElementById('refresh-images-btn');
-            const isLoadingNewKeyword = startIndex === 0 && refreshClicksOnCurrentKeyword === 0 && currentKeywordIndex > 0;
-            if (startIndex === 0 && !isLoadingNewKeyword) area.innerHTML = `<p>Searching images: "${query}"...</p>`;
-            else if (isLoadingNewKeyword) area.innerHTML = `<p>Trying keyword: "${query}"...</p>`;
-            else area.innerHTML += `<p>Loading more images...</p>`;
-            refreshBtn.disabled = true;
+            // ... (loading message logic - unchanged) ...
             try {
-                console.log(`fetchImages: Sending request for "${query}", start index ${startIndex}`);
-                const response = await fetch('/api/search-images', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query, startIndex: startIndex }) });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                // ... (fetch call - unchanged) ...
                 const data = await response.json();
-                const imagesData = data.images || [];
-                console.log(`fetchImages: Received ${imagesData.length} images.`);
-                if (startIndex === 0) { area.innerHTML = ''; } else { const loadingP = area.querySelector('p:last-child'); if (loadingP && loadingP.textContent.includes('Loading')) area.removeChild(loadingP); }
-                if (imagesData.length === 0) { if (startIndex === 0) { area.innerHTML = `<p>No images found for "${query}".</p>`; } else { area.innerHTML += `<p>No more images found.</p>`; } refreshBtn.disabled = (startIndex === 0 || imagesData.length < IMAGES_PER_PAGE); } // Disable if no results on page 1 OR if last page
+                const imagesData = data.images || []; // Now expects {imageUrl, contextUrl, query, width, height}
+                // ... (clear loading message - unchanged) ...
+
+                if (imagesData.length === 0) { /* ... handle no results ... */ }
                 else {
-                    refreshBtn.disabled = (imagesData.length < IMAGES_PER_PAGE); // Disable if fewer than 9 images received (likely last page)
-                    imagesData.forEach((imgData, index) => { const container = document.createElement('div'); container.className = 'image-container'; const img = document.createElement('img'); img.src = imgData.imageUrl; img.alt = `Relevant Image ${startIndex + index + 1}`; img.onerror = function() { this.alt = 'Image failed'; this.style.border = '1px solid red'; }; img.onclick = () => startSimplePreviewPipeline(imgData.imageUrl); const link = document.createElement('a'); link.href = imgData.contextUrl || '#'; link.textContent = 'View Source Page'; link.target = '_blank'; link.rel = 'noopener noreferrer'; if (!imgData.contextUrl) link.style.display = 'none'; const keywordSpan = document.createElement('span'); keywordSpan.className = 'image-keyword'; keywordSpan.textContent = `Keyword: ${imgData.query || 'N/A'}`; container.appendChild(img); container.appendChild(link); container.appendChild(keywordSpan); area.appendChild(container); });
-                }
-            } catch (error) { console.error('Error fetching images:', error); if (startIndex === 0) { area.innerHTML = `<p>Image search failed for "${query}".</p>`; } else { area.innerHTML += `<p>Failed to load more images.</p>`; } refreshBtn.disabled = true; } // Disable on error
+                    refreshBtn.disabled = (imagesData.length < IMAGES_PER_PAGE);
+                    imagesData.forEach((imgData, index) => {
+                         const container = document.createElement('div');
+                         container.className = 'image-container';
+
+                         const img = document.createElement('img'); /* ... set src, alt, etc ... */
+                         img.onclick = () => startSimplePreviewPipeline(imgData.imageUrl); // Ensure this line is present and correct
+
+                         const link = document.createElement('a'); /* ... set href, text, etc ... */
+                         const keywordSpan = document.createElement('span'); /* ... set class, text ... */
+
+                         // *** Add Dimensions Display ***
+                         const dimensionsSpan = document.createElement('span');
+                         dimensionsSpan.className = 'image-dimensions';
+                         if (imgData.width && imgData.height) {
+                            dimensionsSpan.textContent = `${imgData.width} x ${imgData.height}`;
+                         } else {
+                            dimensionsSpan.textContent = `Dimensions N/A`;
+                         }
+                         // *** End Add ***
+
+                         container.appendChild(img);
+                         container.appendChild(link);
+                         container.appendChild(keywordSpan);
+                         container.appendChild(dimensionsSpan); // Add dimensions span
+                         area.appendChild(container);
+                     });
+                 }
+            } catch (error) { /* ... error handling ... */ }
         }
 
-        // --- Fetch Related Articles ---
-        async function fetchRelatedArticles(title, source) { /* ... unchanged ... */ }
+	// --- Fetch Related Articles (ADD LOGGING) ---
+        async function fetchRelatedArticles(title, source) {
+            const list = document.getElementById('related-articles-list');
+            if (!list) { console.error("fetchRelatedArticles Error: List element not found!"); return; } // Check element existence
+            list.innerHTML = "<p>Finding related articles...</p>";
+            console.log(`fetchRelatedArticles: Searching for articles related to "${title}" from "${source}"`); // Log Start
+
+            try {
+                const response = await fetch('/api/find-related-articles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: title, source: source }) // Send title AND source
+                });
+                console.log(`fetchRelatedArticles: Response Status: ${response.status}`); // Log Status
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const data = await response.json();
+                console.log("fetchRelatedArticles: Received data:", data); // Log Received Data
+
+                const relatedArticles = data.relatedArticles || [];
+
+                list.innerHTML = ''; // Clear loading
+                if (relatedArticles.length === 0) {
+                    list.innerHTML = "<p>No other sources found.</p>";
+                    console.log("fetchRelatedArticles: No related articles found in response."); // Log No Results
+                    return;
+                }
+                console.log(`fetchRelatedArticles: Rendering ${relatedArticles.length} articles.`); // Log Rendering Start
+
+                relatedArticles.forEach(article => {
+                    if (article.link === currentArticleData.link) return; // Skip self
+
+                    const el = document.createElement('div');
+                    el.className = 'related-article';
+                    el.innerHTML = `<a href="${article.link}" target="_blank" rel="noopener noreferrer">${article.title}</a><p>${article.source}</p>`;
+                    list.appendChild(el);
+                });
+                console.log("fetchRelatedArticles: Finished rendering."); // Log Rendering End
+
+            } catch (error) {
+                console.error('!!! CATCH ERROR fetching related articles:', error); // Log Catch Error
+                list.innerHTML = "<p style='color: red;'>Related article search failed. Check console.</p>";
+            }
+        }
+
         // --- Fetch Video ---
         async function fetchVideo(title, source, rssVideoUrl) { /* ... unchanged ... */ }
         // --- Display Video ---
         function displayVideo(videoUrl, containerId) { /* ... unchanged ... */ }
-        // --- Call Simple Preview API ---
+
+// --- Call Simple Preview API (ADD LOGGING) ---
         async function startSimplePreviewPipeline(mediaUrl) {
-            const isVideo = currentVideoUrl && mediaUrl === currentVideoUrl; const isImageUrl = !isVideo;
-            currentVideoUrl = isVideo ? mediaUrl : null; simplePreviewImagePath = isImageUrl ? 'generating' : null;
+            console.log(`startSimplePreviewPipeline called with URL: ${mediaUrl}`); // Log Function Start
+
+            // Determine if it's an image or video URL
+            const isVideo = currentVideoUrl && mediaUrl === currentVideoUrl;
+            const isImageUrl = !isVideo;
+
+            console.log(`startSimplePreviewPipeline: Is Video? ${isVideo}, Is Image? ${isImageUrl}`); // Log Type
+
+            currentVideoUrl = isVideo ? mediaUrl : null;
+            simplePreviewImagePath = isImageUrl ? 'generating' : null;
+
             try {
-                 if (isImageUrl) { if (!currentCuratedData) { alert("AI text needed..."); return; } alert("Generating preview image..."); const headline = (currentCuratedData.headline || "N/A").replace(/^\*\*|\*\*$/g, ''); const description = currentCuratedData.description; const response = await fetch('/api/generate-simple-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: mediaUrl, headline, description }) }); if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); const previewData = await response.json(); if (previewData.error || previewData.previewImagePath === '/fallback.png') { alert('Preview Error.'); return; } simplePreviewImagePath = previewData.previewImagePath; }
-                 else if (isVideo) { alert("Preparing video preview..."); displayVideo(mediaUrl, 'simple-preview-video-player'); }
-                 if (simplePreviewImagePath || currentVideoUrl) { setView('simple-preview'); if (simplePreviewImagePath) { document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now(); } currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false; }
-            } catch (error) { console.error('Error in simple preview pipeline:', error); alert('Failed to create preview.'); simplePreviewImagePath = null; }
+                 if (isImageUrl) {
+                    if (!currentCuratedData) { alert("AI text needed..."); return; }
+                    alert("Generating preview image..."); // Alert should appear if called
+                    console.log("startSimplePreviewPipeline: Proceeding with image generation."); // Log Image Path
+                    const headline = (currentCuratedData.headline || "N/A").replace(/^\*\*|\*\*$/g, '');
+                    const description = currentCuratedData.description; // Use the short_description
+                    const response = await fetch('/api/generate-simple-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: mediaUrl, headline, description }) });
+                    // ... (rest of image generation try block) ...
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const previewData = await response.json();
+                    if (previewData.error || previewData.previewImagePath === '/fallback.png') { alert('Preview Error.'); console.error('Preview generation failed on server.'); return; } // Add console error
+                    simplePreviewImagePath = previewData.previewImagePath;
+                    console.log(`startSimplePreviewPipeline: Image generated: ${simplePreviewImagePath}`); // Log Success
+                 }
+                 else if (isVideo) {
+                     alert("Preparing video preview..."); // Alert should appear if called
+                     console.log("startSimplePreviewPipeline: Setting up video preview."); // Log Video Path
+                     displayVideo(mediaUrl, 'simple-preview-video-player');
+                 }
+
+                 // Check if either path exists or video exists
+                 if (simplePreviewImagePath || currentVideoUrl) {
+                    console.log("startSimplePreviewPipeline: Setting view to 'simple-preview'."); // Log View Change
+                    setView('simple-preview');
+                    if (simplePreviewImagePath) {
+                         document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now();
+                    }
+                    currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false;
+                 } else {
+                     console.warn("startSimplePreviewPipeline: No image path or video URL set after processing."); // Log if nothing happened
+                 }
+
+            } catch (error) {
+                 console.error('!!! CATCH ERROR in simple preview pipeline:', error); // Log Catch Error
+                 alert('Failed to create preview. Check console.');
+                 simplePreviewImagePath = null; // Reset on error
+            }
         }
+
         // --- Populate Caption Display ---
         function populateCaptionDisplay() { /* ... unchanged ... */ }
         // --- Handle Copy Caption ---
