@@ -21,8 +21,7 @@ const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 function escapeXml(unsafe) { /* ... */ }
 function wrapText(text, maxCharsPerLine) { /* ... */ }
 
-
-// --- API FUNCTION 1: GENERATE AI TEXT (*** RESPONSE ACCESS FIXED ***) ---
+// --- API FUNCTION 1: GENERATE AI TEXT (*** RESPONSE ACCESS REFINED ***) ---
 async function generateAiText(article) {
     const prompt = `
         You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news, adhering to journalistic best practices (clarity, accuracy, conciseness).
@@ -50,35 +49,43 @@ async function generateAiText(article) {
          });
         console.log("[generateAiText] Received response from Gemini.");
 
-        // --- *** CORRECT WAY TO ACCESS RESPONSE TEXT *** ---
-        // Navigate through the structure shown in the logs
+        // --- *** REFINED RESPONSE ACCESS *** ---
         let rawResponseText = null;
         try {
-            // Use optional chaining to safely access nested properties
-            rawResponseText = generationResult?.response?.candidates?.[0]?.content?.parts?.[0]?.text;
+            // Check structure more carefully before accessing 'text'
+            if (generationResult &&
+                generationResult.response &&
+                generationResult.response.candidates &&
+                generationResult.response.candidates.length > 0 &&
+                generationResult.response.candidates[0].content &&
+                generationResult.response.candidates[0].content.parts &&
+                generationResult.response.candidates[0].content.parts.length > 0 &&
+                typeof generationResult.response.candidates[0].content.parts[0].text === 'string' // Explicitly check type
+            ) {
+                 // Access as a property, not a method
+                 rawResponseText = generationResult.response.candidates[0].content.parts[0].text;
+            } else {
+                 // Log the structure if it doesn't match expectations
+                 console.error("[generateAiText ERROR] Unexpected Gemini response structure:", JSON.stringify(generationResult, null, 2));
+                 throw new Error("Unexpected Gemini response structure.");
+            }
         } catch (accessError) {
              console.error("[generateAiText ERROR] Error accessing nested response text:", accessError);
-             // Log the structure again if access fails
-             console.error("[generateAiText ERROR] Unexpected Gemini response structure:", JSON.stringify(generationResult, null, 2));
-             throw new Error("Gemini API response structure was unexpected.");
+             console.error("[generateAiText ERROR] Full Gemini Response on Access Error:", JSON.stringify(generationResult, null, 2));
+             throw new Error("Error processing Gemini response structure.");
         }
-        // --- *** END FIX *** ---
+        // --- *** END REFINED ACCESS *** ---
 
-        console.log("[generateAiText] Raw Gemini response text:", rawResponseText); // Log the extracted text
+        console.log("[generateAiText] Raw Gemini response text:", rawResponseText); // Should now show the JSON string
 
-        if (typeof rawResponseText !== 'string' || rawResponseText.trim() === '') { // Check if it's a non-empty string
+        if (!rawResponseText || rawResponseText.trim() === '') { // Simplified check
             console.error("[generateAiText ERROR] Extracted Gemini response text is invalid or empty.");
-            // Log the structure again if text is invalid
-             console.error("[generateAiText ERROR] Gemini response structure:", JSON.stringify(generationResult, null, 2));
-            throw new Error("Gemini API response text was invalid or empty.");
+            throw new Error("Extracted Gemini response text was invalid or empty.");
         }
 
         console.log("[generateAiText] Attempting to parse JSON...");
-        // --- Clean potential markdown code block fences before parsing ---
         const cleanedJsonString = rawResponseText.trim().replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        // --- End clean ---
-
-        const resultJson = JSON.parse(cleanedJsonString); // Parse the cleaned string
+        const resultJson = JSON.parse(cleanedJsonString);
         const result = {
             headline: resultJson.image_headline,
             description: resultJson.short_description,
@@ -89,20 +96,19 @@ async function generateAiText(article) {
 
         if (!result.headline || !result.description || !result.caption) {
              console.warn("[generateAiText] Parsed JSON missing expected fields.");
-             // Consider throwing error here if fields are absolutely required
-             // throw new Error("Parsed JSON missing expected fields.");
+             // Throwing error might be better to ensure consistency
+             throw new Error("Parsed JSON missing expected fields (headline, description, caption).");
          }
 
         console.log(`[generateAiText] Successfully generated content.`);
         return result;
 
     } catch (error) {
-        // Log the specific error
-        console.error("[generateAiText CATCH BLOCK ERROR]", error);
+        console.error("[generateAiText CATCH BLOCK ERROR]", error.message); // Log just the message for clarity
+        // Also log the full error if needed for deeper debugging: console.error(error);
         return { headline: "AI Failed", description: "Generation Error. See server logs.", caption: "Error.", originalSource: article.source };
     }
 }
-
 
 // ... (rest of curator.js functions: extractSearchKeywords, searchForRelevantImages, etc.) ...
 
