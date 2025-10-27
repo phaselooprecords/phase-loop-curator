@@ -288,86 +288,138 @@ async function findRelatedVideo(title, source) {
     } catch (error) { console.error(`[Video Search ERROR]`, error.message); return null; }
 }
 
-// --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (ADD MORE LOGGING) ---
+// --- *** UPDATED UTILITY FUNCTION: GENERATE PREVIEW IMAGE *** ---
 async function generateSimplePreviewImage(imageUrl, headline, description) {
-    // --- Log Entry and Inputs ---
-    console.log("--- generateSimplePreviewImage: Function START ---");
-    console.log(`[generateSimplePreviewImage] INPUT imageUrl: ${imageUrl}`);
-    console.log(`[generateSimplePreviewImage] INPUT headline: ${headline}`);
-    console.log(`[generateSimplePreviewImage] INPUT description: ${description}`);
-    // --- End Log ---
+    console.log(`[Simple Preview] Starting preview generation.`);
+    console.log(`[Simple Preview] Image URL: ${imageUrl}`);
+    console.log(`[Simple Preview] Raw Headline:`, headline);
+    console.log(`[Simple Preview] Raw Description:`, description);
 
     try {
-        // --- Input Validation ---
-        if (!imageUrl || typeof imageUrl !== 'string') {
-             console.log("[generateSimplePreviewImage] Validation Failed: Invalid imageUrl."); // Log validation fail
-             throw new Error('Invalid or missing imageUrl');
-        }
-         const headlineText = typeof headline === 'string' ? headline : '';
-         const descText = typeof description === 'string' ? description : '';
-         console.log("[generateSimplePreviewImage] Inputs validated."); // Log validation pass
-        // --- End Input Validation ---
+        if (!imageUrl || typeof imageUrl !== 'string') { throw new Error('Invalid imageUrl'); }
+        const headlineText = typeof headline === 'string' ? headline : '';
+        const descText = typeof description === 'string' ? description : '';
 
-        console.log(`[generateSimplePreviewImage] Fetching image: ${imageUrl}`);
+        console.log(`[Simple Preview] Fetching image: ${imageUrl}`);
         const response = await fetch(imageUrl);
-        console.log(`[generateSimplePreviewImage] Image fetch response status: ${response.status}`); // Log fetch status
-        if (!response.ok) {
-            console.log(`[generateSimplePreviewImage] Fetch Failed with status ${response.status}.`); // Log fetch fail
-            throw new Error(`Fetch failed for ${imageUrl}: ${response.statusText}`);
-        }
+        if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
         const imageBuffer = await response.buffer();
-        console.log(`[generateSimplePreviewImage] Image fetched successfully (Buffer size: ${imageBuffer.length}).`);
+        console.log(`[Simple Preview] Image fetched.`);
 
-        // --- Text Preparation ---
+        // --- Get Original Dimensions ---
+        const metadata = await sharp(imageBuffer).metadata();
+        const originalWidth = metadata.width;
+        const originalHeight = metadata.height;
+        if (!originalWidth || !originalHeight) {
+             throw new Error('Could not read image dimensions.');
+         }
+        console.log(`[Simple Preview] Original Dimensions: ${originalWidth}x${originalHeight}`);
+
+        // --- Determine Target Dimensions (Max Width 800px, No Upscaling) ---
+        const maxWidth = 800;
+        let targetWidth = originalWidth;
+        let targetHeight = originalHeight;
+
+        if (originalWidth > maxWidth) {
+            targetWidth = maxWidth;
+            // Calculate height based on aspect ratio
+            targetHeight = Math.round(originalHeight * (maxWidth / originalWidth));
+            console.log(`[Simple Preview] Resizing down to: ${targetWidth}x${targetHeight}`);
+        } else {
+            console.log(`[Simple Preview] Using original size (smaller than max width).`);
+        }
+
+        // --- Resize Image Buffer (Only if necessary) ---
+        let processedImageBuffer = imageBuffer; // Start with original
+        if (originalWidth > maxWidth) {
+             processedImageBuffer = await sharp(imageBuffer)
+                .resize({
+                    width: targetWidth,
+                    height: targetHeight,
+                    fit: 'inside' // Ensures no upscaling, maintains aspect ratio
+                })
+                .toBuffer();
+             console.log(`[Simple Preview] Image resized.`);
+        }
+
+        // --- Text Preparation (Adjust wrapping based on targetWidth) ---
+        // Estimate characters per line based on width (adjust multiplier as needed)
+        const headlineCharsPerLine = Math.round(targetWidth / 20); // Approx 20px per char avg for large font
+        const sentenceCharsPerLine = Math.round(targetWidth / 10); // Approx 10px per char avg for smaller font
+
+        const cleanedHeadlineRaw = headlineText.replace(/^\*\*|\*\*$/g, '').trim();
+        const headlineLines = wrapText(cleanedHeadlineRaw, headlineCharsPerLine);
+        const escapedHeadlineLines = headlineLines.map(line => escapeXml(line));
+
         const firstSentenceRaw = descText.split(/[.!?]/)[0];
         const fullFirstSentence = firstSentenceRaw ? firstSentenceRaw.trim() + '.' : '';
-        const sentenceLines = wrapText(fullFirstSentence, 80);
+        const sentenceLines = wrapText(fullFirstSentence, sentenceCharsPerLine);
         const escapedSentenceLines = sentenceLines.map(line => escapeXml(line));
-        const cleanedHeadlineRaw = headlineText.replace(/^\*\*|\*\*$/g, '').trim();
-        const headlineLines = wrapText(cleanedHeadlineRaw, 40);
-        const escapedHeadlineLines = headlineLines.map(line => escapeXml(line));
-        console.log("[generateSimplePreviewImage] Text prepared and escaped.");
-        // --- End Text Preparation ---
+        console.log("[Simple Preview] Text prepared, wrapped, and escaped.");
 
-        // --- SVG Generation ---
-        const headlineFontSize = 28; const sentenceFontSize = 18; const lineSpacing = 1.2;
-        const textBlockSpacing = 10; const padding = 15;
+        // --- Dynamic SVG Generation ---
+        const headlineFontSize = 28; // Keep desired font size
+        const sentenceFontSize = 18;
+        const lineSpacing = 1.2;
+        const textBlockSpacing = 10;
+        const padding = 15;
+
+        // Calculate needed height
         const headlineHeight = escapedHeadlineLines.length * headlineFontSize + (escapedHeadlineLines.length > 1 ? (escapedHeadlineLines.length - 1) * headlineFontSize * (lineSpacing - 1) : 0);
         const sentenceHeight = escapedSentenceLines.length * sentenceFontSize + (escapedSentenceLines.length > 1 ? (escapedSentenceLines.length - 1) * sentenceFontSize * (lineSpacing - 1) : 0);
         const totalTextHeight = headlineHeight + sentenceHeight + textBlockSpacing;
-        const overlayHeight = Math.max(110, totalTextHeight + padding * 2);
+        const overlayHeight = Math.max(110, totalTextHeight + padding * 2); // Dynamic height
+
+        // Generate TSPANs (same logic)
         let headlineTspans = ''; escapedHeadlineLines.forEach((line, index) => { const dy = index === 0 ? 0 : `${lineSpacing}em`; headlineTspans += `<tspan x="${padding}" dy="${dy}">${line}</tspan>`; });
         let sentenceTspans = ''; escapedSentenceLines.forEach((line, index) => { const dy = index === 0 ? 0 : `${lineSpacing}em`; sentenceTspans += `<tspan x="${padding}" dy="${dy}">${line}</tspan>`; });
-        const headlineStartY = padding + headlineFontSize; const sentenceStartY = headlineStartY + headlineHeight + textBlockSpacing;
-        const svgOverlay = `<svg width="800" height="${overlayHeight}"><rect x="0" y="0" width="800" height="${overlayHeight}" fill="#000000" opacity="0.7"/><text y="${headlineStartY}" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: ${headlineFontSize}px; font-weight: 900;" fill="#FFFFFF">${headlineTspans}</text><text y="${sentenceStartY}" style="font-family: Arial, sans-serif; font-size: ${sentenceFontSize}px;" fill="#DDDDDD">${sentenceTspans}</text></svg>`;
-        console.log("[generateSimplePreviewImage] SVG overlay generated.");
-        // --- End SVG Generation ---
 
-        console.log("[generateSimplePreviewImage] Processing image with Sharp...");
-        const compositeTop = Math.round(800 - overlayHeight - 15);
-        console.log(`[generateSimplePreviewImage] Overlay height: ${overlayHeight}, Composite top: ${compositeTop}`);
+        // Calculate Y positions (same logic)
+        const headlineStartY = padding + headlineFontSize;
+        const sentenceStartY = headlineStartY + headlineHeight + textBlockSpacing;
 
-        const previewImageBuffer = await sharp(imageBuffer)
-            .resize({ width: 800, height: 800, fit: 'cover' })
-            .composite([{ input: Buffer.from(svgOverlay), top: compositeTop, left: 0 }])
-            .png().toBuffer();
-        console.log("[generateSimplePreviewImage] Image processing complete.");
+        // Create SVG with dynamic width
+        const svgOverlay = `<svg width="${targetWidth}" height="${overlayHeight}">
+            <rect x="0" y="0" width="${targetWidth}" height="${overlayHeight}" fill="#000000" opacity="0.7"/>
+            <text y="${headlineStartY}" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: ${headlineFontSize}px; font-weight: 900;" fill="#FFFFFF">
+                ${headlineTspans}
+            </text>
+            <text y="${sentenceStartY}" style="font-family: Arial, sans-serif; font-size: ${sentenceFontSize}px;" fill="#DDDDDD">
+                ${sentenceTspans}
+            </text>
+        </svg>`;
+        console.log(`[Simple Preview] Generated SVG Overlay (${targetWidth}x${overlayHeight}).`);
 
+        // --- Composite Image ---
+        console.log(`[Simple Preview] Compositing overlay...`);
+        // Calculate top position based on targetHeight
+        const compositeTop = Math.round(targetHeight - overlayHeight - 15); // Position 15px from bottom
+        console.log(`[Simple Preview] Target height: ${targetHeight}, Overlay height: ${overlayHeight}, Composite top: ${compositeTop}`);
+
+        const finalImageBuffer = await sharp(processedImageBuffer) // Use the potentially resized buffer
+            .composite([{
+                input: Buffer.from(svgOverlay),
+                top: compositeTop < 0 ? 0 : compositeTop, // Ensure top isn't negative if overlay is tall
+                left: 0
+            }])
+            .png() // Keep outputting as PNG for consistency
+            .toBuffer();
+        console.log("[Simple Preview] Image processing complete.");
+
+        // --- Save and Return ---
         const filename = `preview_${Date.now()}.png`;
         const imagePath = path.join(process.cwd(), 'public', filename);
-        await fs.writeFile(imagePath, previewImageBuffer);
-        console.log(`[generateSimplePreviewImage] Success: Image saved to ${imagePath}`);
-        console.log("--- generateSimplePreviewImage: Function END (Success) ---"); // Log Success End
+        await fs.writeFile(imagePath, finalImageBuffer);
+        console.log(`[Simple Preview] Success: Image saved to ${imagePath}`);
+        console.log("--- generateSimplePreviewImage: Function END (Success) ---");
         return `/${filename}`;
 
     } catch (error) {
-        // --- Log Error Explicitly ---
-        console.error("--- generateSimplePreviewImage: CATCH BLOCK ENTERED ---"); // Log Catch Entry
-        console.error("[generateSimplePreviewImage ERROR RAW]", error); // Log the raw error object
-        console.error(`[generateSimplePreviewImage ERROR Message]: ${error.message}`); // Log just the message
-        console.log("--- generateSimplePreviewImage: Function END (Error) ---"); // Log Error End
-        // --- End Log ---
-        return '/fallback.png'; // Return fallback path on error
+        console.error("--- generateSimplePreviewImage: CATCH BLOCK ENTERED ---");
+        console.error("[generateSimplePreviewImage ERROR RAW]", error);
+        console.error(`[generateSimplePreviewImage ERROR Message]: ${error.message}`);
+        console.log("--- generateSimplePreviewImage: Function END (Error) ---");
+        return '/fallback.png';
     }
 }
 
