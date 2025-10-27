@@ -1,4 +1,4 @@
-k// server.js (UPDATED with /api/extract-keywords endpoint)
+// server.js (UPDATED with /api/extract-keywords endpoint)
 
 // 1. Import modules (unchanged)
 // ... (rest of imports)
