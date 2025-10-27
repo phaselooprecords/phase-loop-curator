@@ -358,11 +358,11 @@ async function generateSimplePreviewImage(imageUrl, headline, description) {
         console.log("[Simple Preview] Text prepared, wrapped, and escaped.");
 
         // --- Dynamic SVG Generation ---
-        const headlineFontSize = 22; // Keep desired font size
-        const sentenceFontSize = 14;
+        const headlineFontSize = 20; // Keep desired font size
+        const sentenceFontSize = 12;
         const lineSpacing = 1.2;
         const textBlockSpacing = 10;
-        const padding = 12;
+        const padding = 10;
 
         // Calculate needed height
         const headlineHeight = escapedHeadlineLines.length * headlineFontSize + (escapedHeadlineLines.length > 1 ? (escapedHeadlineLines.length - 1) * headlineFontSize * (lineSpacing - 1) : 0);
