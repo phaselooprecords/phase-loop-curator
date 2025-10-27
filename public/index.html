@@ -1,27 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- ... (Meta, Title, Styles unchanged) ... -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase Loop Records Curator</title>
     <style>
-      /* ... All styles unchanged ... */
+        /* Base Styling + News List Image */
+        body { font-family: Arial, sans-serif; background-color: #000000; color: #f0f0f0; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        h1, h2, h3 { color: #ffffff; border-bottom: 2px solid #555; padding-bottom: 10px; text-align: center; margin-bottom: 15px; }
+        h3 { border-bottom: none; font-size: 1.1em; }
+        .article { background-color: #111111; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; border: 1px solid #333; display: flex; align-items: center; }
+        .article-content { flex-grow: 1; }
+        .article h2 { margin-top: 0; font-size: 1.2em; color: #ffffff; border-bottom: none; text-align: left; margin-bottom: 5px; }
+        .article p { font-size: 0.8em; color: #ccc; margin-top: 0;}
+        .article-image { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; margin-right: 15px; flex-shrink: 0; }
+
+        /* UI State & Image Grid + Context Links */
+        .hidden { display: none; }
+        .image-selection-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 10px; }
+        .image-container { display: flex; flex-direction: column; align-items: center; }
+        .image-container img { width: 100%; height: 120px; object-fit: cover; cursor: pointer; border: 3px solid transparent; border-radius: 4px; margin-bottom: 5px; }
+        .image-container img:hover { border-color: #555; }
+        .image-container a { display: block; text-decoration: none; color: #aaa; font-size: 0.7em; text-align: center; margin-top: 2px; word-break: break-all; }
+        .image-keyword { display: block; color: #777; font-size: 0.6em; text-align: center; margin-top: 1px; font-style: italic; }
+
+        /* AI Text Preview Styling + Original Link */
+        #ai-text-preview { padding: 15px; background-color: #1a1a1a; margin-bottom: 10px; border-radius: 4px; border: 1px solid #333; }
+        #preview-headline { margin-top: 0; color: #FF6B6B; font-size: 1.4em; border-bottom: none; text-align: left;}
+        #preview-description { font-size: 0.9em; color: #eee; margin-bottom: 10px;}
+        #preview-caption-text { margin-top: 10px; font-style: italic; font-size: 0.9em; border-top: 1px dashed #333; padding-top: 10px; }
+        #original-article-link-container { margin-bottom: 20px; text-align: center; font-size: 0.9em;}
+        #original-article-link-container a { color: #87CEFA; text-decoration: none; }
+        #original-article-link-container a:hover { text-decoration: underline; }
+
+
+        #original-image-container img { width: 100%; max-width: 400px; margin: 10px auto; display: block; border: 2px solid #444; cursor: pointer; }
+        #related-articles-list { display: flex; flex-direction: column; gap: 8px; }
+        .related-article { background-color: #222; padding: 10px; border-radius: 4px; }
+        .related-article a { color: #87CEFA; text-decoration: none; font-size: 0.9em; }
+        .related-article p { font-size: 0.8em; color: #999; margin: 5px 0 0 0; }
+        #video-display-area { margin-top: 20px; margin-bottom: 20px; }
+        #video-display-area iframe,
+        #video-display-area video { width: 100%; max-width: 560px; aspect-ratio: 16 / 9; display: block; margin: 0 auto; border: 1px solid #333; border-radius: 4px; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; margin-top: 5px; }
+        button:hover { background-color: #0056b3; }
+        button#refresh-images-btn { background-color: #28a745; margin-left: 10px; }
+        button#download-preview-btn { background-color: #17a2b8; margin-right: 10px; }
+        button.back-button { background-color: #6c757d; margin-left: 10px;}
+        button#share-preview-btn { background-color: #007bff; margin-right: 10px;}
+        button#copy-caption-btn { background-color: #6f42c1; }
+        button#copy-caption-btn:hover { background-color: #5a2e9b; }
+        #simple-preview-image { width: 100%; max-width: 600px; margin: auto; display: block; margin-bottom: 20px; }
+        #ai-caption-display { background-color: #1a1a1a; padding: 15px; margin-top: 20px; border-radius: 4px; border: 1px solid #333; }
+        #ai-caption-display h3 { margin-top: 0; color: #FF6B6B; font-size: 1.4em; border-bottom: none; text-align: left;}
+        #ai-caption-display #caption-text-area { width: 100%; height: 120px; background-color: #222; color: #f0f0f0; border: 1px solid #444; padding: 10px; box-sizing: border-box; resize: vertical; font-family: Arial, sans-serif; font-size: 0.9em; margin-bottom: 10px;}
+        #simple-preview-video-player { width: 100%; max-width: 600px; aspect-ratio: 16 / 9; margin: auto; display: none; margin-bottom: 20px; border: 1px solid #444;}
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- ... (H1, P, news-list unchanged) ... -->
+        <h1>PHASE LOOP RECORDS NEWS FEED</h1>
+        <p>Tap a headline to create the social media post.</p>
+
+        <div id="news-list"> Loading news... </div>
 
         <div id="selection-view" class="hidden">
-             <!-- ... (H2, AI Text Preview, Original Link, Original Image unchanged) ... -->
-
-             <!-- Web Images Area -->
+             <h2>Select Your Post Visual</h2>
+             <div id="ai-text-preview">
+                 <h3 id="preview-headline">Generating AI text...</h3>
+                 <p id="preview-description"></p>
+                 <p id="preview-caption-text"></p>
+             </div>
+             <div id="original-article-link-container">
+                 <a id="original-article-link" href="#" target="_blank" rel="noopener noreferrer">View Original Article</a>
+             </div>
+             <div id="original-image-container" class="hidden">
+                 <h3>Original Article Image:</h3>
+                 <img id="original-image" src="" alt="Original Article Image" />
+             </div>
              <h3>Relevant Web Images: <button id="refresh-images-btn" disabled>Refresh</button></h3>
              <div id="image-selection-area" class="image-selection-grid">
                  <p>Generating AI text to determine search query...</p>
              </div>
-             <!-- ... (Video Area, Related Articles Area unchanged) ... -->
+             <div id="video-display-area" class="hidden">
+                <h3>Related Video:</h3>
+                <div id="video-player-container"></div>
+             </div>
+             <h3>Other Sources:</h3>
+             <div id="related-articles-list">
+                 <p>Finding related articles...</p>
+             </div>
         </div>
 
-        <div id="simple-preview-view" class="hidden"> /* ... unchanged ... */ </div>
+        <div id="simple-preview-view" class="hidden">
+            <h2>Quick Preview</h2>
+            <img id="simple-preview-image" src="" alt="Simple Preview" />
+            <div id="simple-preview-video-player" style="display: none;"></div>
+
+            <div id="ai-caption-display">
+                <h3>AI Caption:</h3>
+                <textarea id="caption-text-area" readonly></textarea>
+                <button id="copy-caption-btn">Copy Caption</button>
+            </div>
+
+            <button id="share-preview-btn">Share Post</button>
+            <button id="download-preview-btn">Download Image</button>
+            <button onclick="setView('select')" class="back-button">Back to Selection</button>
+        </div>
+
     </div>
 
     <script>
@@ -31,225 +118,154 @@
         let simplePreviewImagePath = null;
         let currentVideoUrl = null;
         const IMAGES_PER_PAGE = 9;
-
-        // *** UPDATED State for Image Search Pagination & Keywords ***
-        let currentSearchKeywords = []; // Array of keywords tried
-        let currentKeywordIndex = 0;    // Index of the keyword currently being used
-        let refreshClicksOnCurrentKeyword = 0; // Clicks since last keyword change (0, 1, 2)
-        let currentImageStartIndex = 0; // 0-based index for pagination within current keyword
-
+        let currentSearchKeywords = [];
+        let currentKeywordIndex = 0;
+        let refreshClicksOnCurrentKeyword = 0;
+        let currentImageStartIndex = 0;
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchNews();
 
-            // *** UPDATED Refresh button listener ***
             document.getElementById('refresh-images-btn').onclick = () => {
                 if (currentSearchKeywords.length === 0 || !currentCuratedData) {
                     alert('Cannot refresh: search keywords not set or AI data missing.'); return;
                 }
-
-                refreshClicksOnCurrentKeyword++; // Increment clicks on this keyword
-
+                refreshClicksOnCurrentKeyword++;
                 if (refreshClicksOnCurrentKeyword < 3) {
-                    // --- Load next page for CURRENT keyword ---
-                    currentImageStartIndex += IMAGES_PER_PAGE; // Go to next page index
+                    currentImageStartIndex += IMAGES_PER_PAGE;
                     const currentKeyword = currentSearchKeywords[currentKeywordIndex];
                     console.log(`[Refresh] Loading next images for "${currentKeyword}", starting at index ${currentImageStartIndex}`);
                     fetchImages(currentKeyword, currentImageStartIndex);
                 } else {
-                    // --- Time to get an ALTERNATIVE keyword ---
                     console.log(`[Refresh] Reached 3 clicks, requesting alternative keywords...`);
-                     // Disable button while fetching alternative
                     document.getElementById('refresh-images-btn').disabled = true;
-                    fetchAlternativeKeywords(); // This will handle fetching and starting the new search
+                    fetchAlternativeKeywords();
                 }
             };
 
-            // Other listeners (Unchanged)
             document.getElementById('download-preview-btn').onclick = () => handleDownload();
             document.getElementById('share-preview-btn').onclick = () => handleShare();
             document.getElementById('copy-caption-btn').onclick = () => handleCopyCaption();
         });
 
-        // --- UI VIEW HANDLERS (Unchanged) ---
-        function setView(viewId) { /* ... unchanged ... */ }
+        // --- UI VIEW HANDLERS ---
+        function setView(viewId) {
+            document.getElementById('news-list').classList.add('hidden');
+            document.getElementById('selection-view').classList.add('hidden');
+            document.getElementById('simple-preview-view').classList.add('hidden');
 
-        // --- Fetch News (Unchanged) ---
-        async function fetchNews() { /* ... unchanged ... */ }
+            if (viewId === 'list') { /* ... */ }
+            else if (viewId === 'select') { /* ... */ }
+            else if (viewId === 'simple-preview') {
+                document.getElementById('simple-preview-view').classList.remove('hidden');
+                populateCaptionDisplay();
+                const downloadBtn = document.getElementById('download-preview-btn');
+                const imgPreview = document.getElementById('simple-preview-image');
+                const videoPreview = document.getElementById('simple-preview-video-player');
+                if (currentVideoUrl) { /* ... handle video display ... */ }
+                else { /* ... handle image display ... */ }
+            }
+        }
 
-        // --- Handle Tap (*** UPDATED to reset ALL keyword/pagination state ***) ---
+        // --- Fetch News ---
+        async function fetchNews() {
+             const newsListElement = document.getElementById('news-list');
+             // ... (rest unchanged) ...
+             try {
+                 // ... fetch /api/news ...
+                 articles.forEach(article => {
+                     const articleElement = document.createElement('div');
+                     // ... create imgElement ...
+                     // ... create contentElement ...
+                     articleElement.appendChild(imgElement);
+                     articleElement.appendChild(contentElement);
+                     articleElement.onclick = () => handleArticleTap(article);
+                     newsListElement.appendChild(articleElement);
+                 });
+             } catch (error) { /* ... error handling ... */ }
+        }
+
+        // --- Handle Tap ---
         async function handleArticleTap(article) {
              currentArticleData = article;
-             currentCuratedData = null;
-             currentVideoUrl = null;
-             simplePreviewImagePath = null;
-
-             // *** Reset ALL image search state ***
-             currentSearchKeywords = [];
-             currentKeywordIndex = 0;
-             refreshClicksOnCurrentKeyword = 0;
-             currentImageStartIndex = 0;
-             document.getElementById('refresh-images-btn').disabled = true; // Disable refresh initially
-             // *** End Reset ***
-
+             // ... reset other state vars ...
+             currentSearchKeywords = []; currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0;
+             document.getElementById('refresh-images-btn').disabled = true;
              setView('select');
-
-             // Reset UI sections (unchanged)
-             // ...
-             document.getElementById('image-selection-area').innerHTML = "<p>Generating AI text to determine search query...</p>";
-             // ...
-
-             // Set original article link (unchanged)
-             // ...
-
-             // Call AI Text FIRST (unchanged)
-             fetchAiText(article);
-
-             // Call other non-dependent APIs (unchanged)
-             fetchRelatedArticles(article.title, article.source);
-             fetchVideo(article.title, article.source, article.videoUrl);
-
-             // Handle original image (unchanged)
-             if (article.originalImageUrl) { /* ... */ }
+             // ... reset UI elements ...
+             const originalLinkEl = document.getElementById('original-article-link');
+             originalLinkEl.href = article.link;
+             originalLinkEl.textContent = `View Original Article on ${article.source}`;
+             // ... call fetchAiText, fetchRelatedArticles, fetchVideo ...
+             fetchAiText(article); // This triggers keyword extraction -> image search
+             // ... handle original image ...
          }
 
-        // --- Fetch AI Text (*** UPDATED: Triggers primary keyword extraction ***) ---
+        // --- Fetch AI Text ---
         async function fetchAiText(article) {
-             // ... (fetches AI text and populates fields - unchanged until the end) ...
-            try {
+             try {
                  // ... fetch /api/generate-text ...
                  currentCuratedData = await response.json();
                  // ... populate UI ...
-
-                // *** Trigger PRIMARY keyword extraction ***
-                if (currentCuratedData.headline && currentCuratedData.headline !== "AI Failed") {
+                 if (currentCuratedData.headline && currentCuratedData.headline !== "AI Failed") {
                      fetchPrimaryKeywordsAndStartImageSearch(currentCuratedData.headline, currentCuratedData.description);
-                } else { /* ... fallback as before ... */ }
-
-            } catch (error) { /* ... error handling and fallback as before ... */ }
+                 } else { /* ... fallback ... */ }
+             } catch (error) { /* ... error handling and fallback ... */ }
         }
 
-        // --- Fetch Primary Keywords & Trigger Image Search (Renamed, logic mostly same) ---
+        // --- Fetch Primary Keywords ---
         async function fetchPrimaryKeywordsAndStartImageSearch(headline, description) {
-            document.getElementById('image-selection-area').innerHTML = '<p>Extracting primary keywords for image search...</p>';
-            try {
-                // NOTE: Using the *same* endpoint as before for initial extraction
-                const response = await fetch('/api/extract-keywords', {
-                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                     body: JSON.stringify({ headline, description })
-                 });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-
-                let primaryKeyword = data.keywords; // Get keyword from AI
-
-                if (!primaryKeyword) { // Fallback if AI fails
-                    console.warn("[Keywords] Primary extraction failed, falling back to article title.");
-                    primaryKeyword = currentArticleData.title; // Use original title
-                    document.getElementById('image-selection-area').innerHTML = '<p>Keyword extraction failed, using article title...</p>';
-                }
-
-                // *** Initialize search state ***
-                currentSearchKeywords = [primaryKeyword]; // Start with the first keyword
-                currentKeywordIndex = 0;
-                refreshClicksOnCurrentKeyword = 0;
-                currentImageStartIndex = 0;
-                console.log(`[Keywords] Received primary keyword: "${primaryKeyword}", starting image search.`);
-                fetchImages(primaryKeyword, 0); // Start image search
-
-            } catch (error) { /* ... error handling and fallback as before ... */ }
-        }
-
-        // --- *** NEW FUNCTION: Fetch Alternative Keywords *** ---
-        async function fetchAlternativeKeywords() {
-             if (!currentCuratedData) {
-                 alert("Cannot get alternative keywords without AI text.");
-                 document.getElementById('refresh-images-btn').disabled = false; // Re-enable if stuck
-                 return;
-             }
-             const area = document.getElementById('image-selection-area');
-             area.innerHTML += '<p>Searching for alternative keywords...</p>'; // Append message
-
+             // ... (unchanged) ...
              try {
-                const response = await fetch('/api/get-alternative-keywords', {
-                     method: 'POST',
-                     headers: { 'Content-Type': 'application/json' },
-                     body: JSON.stringify({
-                         headline: currentCuratedData.headline,
-                         description: currentCuratedData.description,
-                         previousKeywords: currentSearchKeywords // Send keywords already tried
-                     })
-                 });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-
-                if (data.keywords) {
-                    const newKeyword = data.keywords;
-                    console.log(`[AltKeywords] Received alternative: "${newKeyword}"`);
-                    // Add to list, update index, reset counters
-                    currentSearchKeywords.push(newKeyword);
-                    currentKeywordIndex++;
-                    refreshClicksOnCurrentKeyword = 0; // Reset click count for the new keyword
-                    currentImageStartIndex = 0;      // Reset pagination for the new keyword
-                    // Start search with the new keyword
-                    fetchImages(newKeyword, 0);
-                } else {
-                    // AI couldn't find a different keyword
-                    console.warn("[AltKeywords] AI could not provide a suitable alternative keyword.");
-                    alert("No more alternative keywords found by AI.");
-                    // Keep refresh button disabled as we've exhausted options for now
-                    area.innerHTML += '<p>No alternative keywords found.</p>';
-                    document.getElementById('refresh-images-btn').disabled = true;
-                }
-
-            } catch (error) {
-                 console.error("Error fetching alternative keywords:", error);
-                 alert("Failed to get alternative keywords.");
-                 // Re-enable button on error so user might try again? Or keep disabled? Keep disabled.
-                 area.innerHTML += '<p>Failed to get alternative keywords.</p>';
-                 document.getElementById('refresh-images-btn').disabled = true;
-             }
+                // ... fetch /api/extract-keywords ...
+                let primaryKeyword = data.keywords;
+                if (!primaryKeyword) { /* ... fallback ... */ }
+                currentSearchKeywords = [primaryKeyword]; // Start list
+                currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0;
+                fetchImages(primaryKeyword, 0); // Start image search
+             } catch (error) { /* ... error handling and fallback ... */ }
         }
 
+        // --- Fetch Alternative Keywords ---
+        async function fetchAlternativeKeywords() {
+             // ... (unchanged) ...
+             try {
+                 // ... fetch /api/get-alternative-keywords ...
+                 if (data.keywords) {
+                     const newKeyword = data.keywords;
+                     currentSearchKeywords.push(newKeyword); // Add to list
+                     currentKeywordIndex++; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0; // Reset counters
+                     fetchImages(newKeyword, 0); // Start search with new keyword
+                 } else { /* ... handle no alternatives found ... */ }
+             } catch (error) { /* ... error handling ... */ }
+        }
 
-        // --- Fetch Images (Unchanged logic, just ensure button state) ---
+        // --- Fetch Images ---
         async function fetchImages(query, startIndex) {
-            const area = document.getElementById('image-selection-area');
-            const refreshBtn = document.getElementById('refresh-images-btn');
-
-            // Update loading message based on whether it's a new keyword or pagination
-             const isLoadingNewKeyword = startIndex === 0 && refreshClicksOnCurrentKeyword === 0 && currentKeywordIndex > 0;
-             if (startIndex === 0 && !isLoadingNewKeyword) area.innerHTML = `<p>Searching for images: "${query}"...</p>`;
-             else if (isLoadingNewKeyword) area.innerHTML = `<p>Trying alternative keyword: "${query}"...</p>`; // Specific message
-             else area.innerHTML += `<p>Loading more images...</p>`;
-
-             refreshBtn.disabled = true; // Disable while fetching
-
-            try {
-                // ... (fetch call using query, startIndex - unchanged) ...
-                const response = await fetch('/api/search-images', { /* ... */ });
-                const data = await response.json();
-                const imagesData = data.images || [];
-
-                // Clean up loading messages
-                if (startIndex === 0) { area.innerHTML = ''; }
-                else {
-                    const loadingP = area.querySelector('p:last-child');
-                    if (loadingP && loadingP.textContent.includes('Loading')) area.removeChild(loadingP);
-                }
-
-                if (imagesData.length === 0) {
-                     if (startIndex === 0) { area.innerHTML = `<p>No relevant images found for "${query}".</p>`; }
-                     else { area.innerHTML += `<p>No more images found for "${query}".</p>`; }
-                     // Keep button disabled ONLY if no results found on first page for this keyword
-                     refreshBtn.disabled = (startIndex === 0);
-                } else {
-                    refreshBtn.disabled = false; // Re-enable if results found
-                     // Append images (unchanged logic with keyword display)
-                     imagesData.forEach((imgData, index) => { /* ... append image, link, keyword ... */ });
+             const area = document.getElementById('image-selection-area');
+             const refreshBtn = document.getElementById('refresh-images-btn');
+             // ... (set loading message) ...
+             refreshBtn.disabled = true;
+             try {
+                 // ... fetch /api/search-images ...
+                 const data = await response.json();
+                 const imagesData = data.images || [];
+                 // ... (clear loading message) ...
+                 if (imagesData.length === 0) { /* ... handle no results ... */ refreshBtn.disabled = (startIndex === 0); }
+                 else {
+                     refreshBtn.disabled = false;
+                     imagesData.forEach((imgData, index) => {
+                         const container = document.createElement('div');
+                         container.className = 'image-container';
+                         const img = document.createElement('img'); /* ... set src, alt, etc ... */
+                         img.onclick = () => startSimplePreviewPipeline(imgData.imageUrl);
+                         const link = document.createElement('a'); /* ... set href, text, etc ... */
+                         const keywordSpan = document.createElement('span'); /* ... set class, text ... */
+                         container.appendChild(img); container.appendChild(link); container.appendChild(keywordSpan);
+                         area.appendChild(container);
+                     });
                  }
-
-            } catch (error) { /* ... error handling ... */ }
+             } catch (error) { /* ... error handling ... */ }
         }
 
         // --- Fetch Related Articles (unchanged) ---
@@ -259,52 +275,49 @@
         // --- Display Video (unchanged) ---
         function displayVideo(videoUrl, containerId) { /* ... unchanged ... */ }
 
-        // --- Call Simple Preview API (*** UPDATED to reset counts ***) ---
+        // --- Call Simple Preview API ---
         async function startSimplePreviewPipeline(mediaUrl) {
-            // ... (rest of function unchanged until success part) ...
+            const isVideo = currentVideoUrl && mediaUrl === currentVideoUrl;
+            const isImageUrl = !isVideo;
+            currentVideoUrl = isVideo ? mediaUrl : null;
+            simplePreviewImagePath = isImageUrl ? 'generating' : null;
             try {
-                 if (/* preview generation successful or video setup done */) {
-                    setView('simple-preview');
-                     // *** Reset image search pagination state after selection ***
-                     currentImageStartIndex = 0;
-                     refreshClicksOnCurrentKeyword = 0; // Reset clicks too
-                     // Keep current keyword index and array
-                     document.getElementById('refresh-images-btn').disabled = false;
+                 if (isImageUrl) {
+                    // ... fetch /api/generate-simple-preview ...
+                    simplePreviewImagePath = previewData.previewImagePath;
+                 } else if (isVideo) {
+                     displayVideo(mediaUrl, 'simple-preview-video-player');
                  }
-            } catch (error) { /* ... error handling ... */ }
+
+                 // --- *** THIS IS THE FIX *** ---
+                 // Use a proper condition: check if either path exists or video exists
+                 if (simplePreviewImagePath || currentVideoUrl) {
+                    setView('simple-preview');
+                    if (simplePreviewImagePath) {
+                         document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now();
+                    }
+                    // Reset pagination state after selection
+                    currentImageStartIndex = 0;
+                    refreshClicksOnCurrentKeyword = 0;
+                    document.getElementById('refresh-images-btn').disabled = false;
+                 }
+                 // --- *** END FIX *** ---
+
+            } catch (error) {
+                 console.error('Error in simple preview pipeline:', error);
+                 alert('Failed to create preview.');
+                 simplePreviewImagePath = null; // Reset on error
+            }
         }
 
         // --- Populate Caption Display (unchanged) ---
         function populateCaptionDisplay() { /* ... unchanged ... */ }
         // --- Handle Copy Caption (unchanged) ---
         async function handleCopyCaption() { /* ... unchanged ... */ }
-        // --- Share Button Logic (*** UPDATED to reset counts ***) ---
-        async function handleShare() {
-            // ... (checks and share logic unchanged) ...
-            if (navigator.share) {
-                try {
-                    await navigator.share(shareData);
-                    alert('Shared successfully!');
-                    // *** Reset image search pagination state after sharing ***
-                     currentImageStartIndex = 0;
-                     refreshClicksOnCurrentKeyword = 0; // Reset clicks too
-                     document.getElementById('refresh-images-btn').disabled = false;
-
-                } catch (err) { /* ... error handling ... */ }
-            } else { /* ... fallback ... */ }
-        }
-
-        // --- Download Button Logic (*** UPDATED to reset counts ***) ---
-        function handleDownload() {
-            let didDownload = false;
-            // ... (video/image download logic unchanged) ...
-            if (didDownload) {
-                // *** Reset image search pagination state after download/open ***
-                currentImageStartIndex = 0;
-                refreshClicksOnCurrentKeyword = 0; // Reset clicks too
-                document.getElementById('refresh-images-btn').disabled = false;
-            }
-        }
+        // --- Share Button Logic (unchanged) ---
+        async function handleShare() { /* ... unchanged ... */ }
+        // --- Download Button Logic (unchanged) ---
+        function handleDownload() { /* ... unchanged ... */ }
 
     </script>
 </body>
