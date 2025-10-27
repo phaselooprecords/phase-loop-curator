@@ -122,8 +122,50 @@
             // ... other listeners ...
         });
 
-        // --- UI VIEW HANDLERS (Unchanged) ---
-        function setView(viewId) { /* ... unchanged ... */ }
+
+// --- UI VIEW HANDLERS (ADD LOGS) ---
+        function setView(viewId) {
+            console.log(`setView called with ID: ${viewId}`); // Log 1: Function called
+            const newsList = document.getElementById('news-list');
+            const selectionView = document.getElementById('selection-view');
+            const simplePreviewView = document.getElementById('simple-preview-view');
+
+            if (!newsList || !selectionView || !simplePreviewView) {
+                console.error("setView Error: One or more view elements not found!"); // Log Error
+                return;
+            }
+            console.log("setView: Found all view elements."); // Log 2: Elements found
+
+            // Hide all views first
+            newsList.classList.add('hidden');
+            selectionView.classList.add('hidden');
+            simplePreviewView.classList.add('hidden');
+            console.log("setView: Added 'hidden' to all views."); // Log 3: Hidden applied
+
+            // Show the target view
+            if (viewId === 'list') {
+                newsList.classList.remove('hidden');
+                console.log("setView: Showing 'news-list'."); // Log 4a
+            } else if (viewId === 'select') {
+                selectionView.classList.remove('hidden');
+                console.log("setView: Showing 'selection-view'."); // Log 4b
+            } else if (viewId === 'simple-preview') {
+                simplePreviewView.classList.remove('hidden');
+                console.log("setView: Showing 'simple-preview-view'."); // Log 4c
+                populateCaptionDisplay(); // Keep this logic here
+            }
+        }
+
+        // --- Fetch News ---
+        async function fetchNews() { /* ... unchanged ... */ }
+
+        // --- Handle Tap ---
+        async function handleArticleTap(article) {
+             console.log("handleArticleTap called for:", article.title);
+             // ... (rest of handleArticleTap - unchanged) ...
+             setView('select'); // This calls the updated setView
+             // ... (rest of handleArticleTap - unchanged) ...
+         }
 
         // --- STEP 1: Fetch News (ADD LOGS) ---
         async function fetchNews() {
