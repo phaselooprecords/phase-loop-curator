@@ -279,91 +279,133 @@
             } catch (error) { console.error("Error fetching alternative keywords:", error); alert("Failed to get alternative keywords."); area.innerHTML += '<p>Failed to get alternative keywords.</p>'; document.getElementById('refresh-images-btn').disabled = true; }
         }
 
-	// --- Fetch Images (DISPLAY DIMENSIONS) ---
+	// --- Fetch Images (ADD EXTENSIVE LOGGING) ---
         async function fetchImages(query, startIndex) {
-            // ... (loading message logic - unchanged) ...
-            try {
-                // ... (fetch call - unchanged) ...
-                const data = await response.json();
-                const imagesData = data.images || []; // Now expects {imageUrl, contextUrl, query, width, height}
-                // ... (clear loading message - unchanged) ...
+            console.log(`fetchImages: function STARTED. Query: "${query}", StartIndex: ${startIndex}`); // Log Start
+            const area = document.getElementById('image-selection-area');
+            const refreshBtn = document.getElementById('refresh-images-btn');
 
-                if (imagesData.length === 0) { /* ... handle no results ... */ }
-                else {
-                    refreshBtn.disabled = (imagesData.length < IMAGES_PER_PAGE);
-                    imagesData.forEach((imgData, index) => {
-                         const container = document.createElement('div');
-                         container.className = 'image-container';
+            if (!area || !refreshBtn) {
+                console.error("fetchImages Error: Area or Refresh button element not found!");
+                return;
+            }
+            console.log("fetchImages: Found UI elements."); // Log Elements Found
 
-                         const img = document.createElement('img'); /* ... set src, alt, etc ... */
-                         img.onclick = () => startSimplePreviewPipeline(imgData.imageUrl); // Ensure this line is present and correct
-
-                         const link = document.createElement('a'); /* ... set href, text, etc ... */
-                         const keywordSpan = document.createElement('span'); /* ... set class, text ... */
-
-                         // *** Add Dimensions Display ***
-                         const dimensionsSpan = document.createElement('span');
-                         dimensionsSpan.className = 'image-dimensions';
-                         if (imgData.width && imgData.height) {
-                            dimensionsSpan.textContent = `${imgData.width} x ${imgData.height}`;
-                         } else {
-                            dimensionsSpan.textContent = `Dimensions N/A`;
-                         }
-                         // *** End Add ***
-
-                         container.appendChild(img);
-                         container.appendChild(link);
-                         container.appendChild(keywordSpan);
-                         container.appendChild(dimensionsSpan); // Add dimensions span
-                         area.appendChild(container);
-                     });
+            // Set loading message
+            const isLoadingNewKeyword = startIndex === 0 && refreshClicksOnCurrentKeyword === 0 && currentKeywordIndex > 0;
+            if (startIndex === 0 && !isLoadingNewKeyword) {
+                 area.innerHTML = `<p>Searching images: "${query}"...</p>`;
+                 console.log("fetchImages: Set initial search loading message.");
+            } else if (isLoadingNewKeyword) {
+                 area.innerHTML = `<p>Trying keyword: "${query}"...</p>`;
+                 console.log("fetchImages: Set alternative keyword loading message.");
+            } else {
+                 // Append loading message carefully
+                 let loadingP = area.querySelector('p.loading-more');
+                 if (!loadingP) {
+                     loadingP = document.createElement('p');
+                     loadingP.className = 'loading-more'; // Add class for easy removal
+                     area.appendChild(loadingP);
                  }
-            } catch (error) { /* ... error handling ... */ }
-        }
+                 loadingP.textContent = 'Loading more images...';
+                 console.log("fetchImages: Set/Update 'Loading more' message.");
+            }
 
-	// --- Fetch Related Articles (ADD LOGGING) ---
-        async function fetchRelatedArticles(title, source) {
-            const list = document.getElementById('related-articles-list');
-            if (!list) { console.error("fetchRelatedArticles Error: List element not found!"); return; } // Check element existence
-            list.innerHTML = "<p>Finding related articles...</p>";
-            console.log(`fetchRelatedArticles: Searching for articles related to "${title}" from "${source}"`); // Log Start
+            refreshBtn.disabled = true; // Disable while fetching
 
             try {
-                const response = await fetch('/api/find-related-articles', {
+                const requestBody = { query: query, startIndex: startIndex };
+                console.log("fetchImages: Prepared request body:", requestBody); // Log Body
+
+                console.log("fetchImages: BEFORE sending fetch request to /api/search-images"); // Log Before Fetch
+                const response = await fetch('/api/search-images', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: title, source: source }) // Send title AND source
+                    body: JSON.stringify(requestBody)
                 });
-                console.log(`fetchRelatedArticles: Response Status: ${response.status}`); // Log Status
+                console.log(`fetchImages: AFTER fetch response received. Status: ${response.status}`); // Log After Fetch
 
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-                const data = await response.json();
-                console.log("fetchRelatedArticles: Received data:", data); // Log Received Data
-
-                const relatedArticles = data.relatedArticles || [];
-
-                list.innerHTML = ''; // Clear loading
-                if (relatedArticles.length === 0) {
-                    list.innerHTML = "<p>No other sources found.</p>";
-                    console.log("fetchRelatedArticles: No related articles found in response."); // Log No Results
-                    return;
+                if (!response.ok) {
+                    const errorText = await response.text(); // Get error text from server if possible
+                    console.error(`fetchImages: Fetch response NOT ok: ${response.status}`, errorText); // Log Error Response
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                 }
-                console.log(`fetchRelatedArticles: Rendering ${relatedArticles.length} articles.`); // Log Rendering Start
 
-                relatedArticles.forEach(article => {
-                    if (article.link === currentArticleData.link) return; // Skip self
+                console.log("fetchImages: Response OK. Trying response.json()..."); // Log Before JSON Parse
+                const data = await response.json();
+                console.log(`fetchImages: Successfully parsed JSON. Received ${data?.images?.length ?? 0} images.`); // Log After JSON Parse
 
-                    const el = document.createElement('div');
-                    el.className = 'related-article';
-                    el.innerHTML = `<a href="${article.link}" target="_blank" rel="noopener noreferrer">${article.title}</a><p>${article.source}</p>`;
-                    list.appendChild(el);
-                });
-                console.log("fetchRelatedArticles: Finished rendering."); // Log Rendering End
+                const imagesData = data.images || [];
+
+                // --- Clean up loading messages ---
+                // If starting fresh, clear everything
+                if (startIndex === 0) {
+                     area.innerHTML = '';
+                     console.log("fetchImages: Cleared area for initial results.");
+                 }
+                 // If paginating, remove only the "Loading more" message
+                 else {
+                     const loadingP = area.querySelector('p.loading-more');
+                     if (loadingP) {
+                         area.removeChild(loadingP);
+                         console.log("fetchImages: Removed 'Loading more' message.");
+                     }
+                 }
+                 // --- End cleanup ---
+
+
+                if (imagesData.length === 0) {
+                     if (startIndex === 0) {
+                         area.innerHTML = `<p>No relevant images found for "${query}".</p>`;
+                         console.log("fetchImages: Displayed 'No relevant images'.");
+                     } else {
+                         area.innerHTML += `<p>No more images found for "${query}".</p>`;
+                         console.log("fetchImages: Displayed 'No more images'.");
+                     }
+                     // Keep button disabled ONLY if no results found on first page OR if last page had less than expected
+                     refreshBtn.disabled = (startIndex === 0 || imagesData.length < IMAGES_PER_PAGE);
+                     console.log(`fetchImages: Refresh button disabled state: ${refreshBtn.disabled}`);
+                } else {
+                    // Re-enable refresh button unless it's potentially the last page
+                    refreshBtn.disabled = (imagesData.length < IMAGES_PER_PAGE);
+                    console.log(`fetchImages: Refresh button disabled state: ${refreshBtn.disabled}`);
+
+                     console.log("fetchImages: Starting loop to render images..."); // Log Before Loop
+                     imagesData.forEach((imgData, index) => {
+                         // console.log(`fetchImages: Rendering image ${index}`); // Optional detailed log
+                         const container = document.createElement('div');
+                         container.className = 'image-container';
+                         const img = document.createElement('img');
+                         img.src = imgData.imageUrl;
+                         img.alt = `Relevant Image ${startIndex + index + 1}`;
+                         img.onerror = function() { this.alt = 'Image failed'; this.style.border = '1px solid red'; };
+                         img.onclick = () => startSimplePreviewPipeline(imgData.imageUrl);
+                         const link = document.createElement('a');
+                         link.href = imgData.contextUrl || '#';
+                         link.textContent = 'View Source Page';
+                         link.target = '_blank';
+                         link.rel = 'noopener noreferrer';
+                         if (!imgData.contextUrl) link.style.display = 'none';
+                         const keywordSpan = document.createElement('span');
+                         keywordSpan.className = 'image-keyword';
+                         keywordSpan.textContent = `Keyword: ${imgData.query || 'N/A'}`;
+                         container.appendChild(img); container.appendChild(link); container.appendChild(keywordSpan);
+                         area.appendChild(container);
+                     });
+                     console.log("fetchImages: Finished rendering images."); // Log After Loop
+                 }
 
             } catch (error) {
-                console.error('!!! CATCH ERROR fetching related articles:', error); // Log Catch Error
-                list.innerHTML = "<p style='color: red;'>Related article search failed. Check console.</p>";
+                console.error('!!! CATCH ERROR inside fetchImages:', error); // Log Catch Error
+                 if (startIndex === 0) {
+                    area.innerHTML = `<p style='color: red;'>Image search failed for "${query}". Check console.</p>`;
+                 } else {
+                     // Attempt to remove loading message before showing error
+                     const loadingP = area.querySelector('p.loading-more');
+                     if (loadingP) area.removeChild(loadingP);
+                     area.innerHTML += `<p style='color: red;'>Failed to load more images. Check console.</p>`;
+                 }
+                 refreshBtn.disabled = true; // Disable on error
             }
         }
 
