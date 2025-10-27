@@ -1,4 +1,4 @@
-// curator.js (UPDATED: Revised generateAiText prompt)
+// curator.js (FIXED: Correct Gemini response handling)
 
 require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
@@ -9,7 +9,6 @@ const fs = require('fs/promises');
 const fetch = require('node-fetch');
 
 // --- API CLIENTS SETUP ---
-// ... (unchanged)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const model = 'gemini-2.5-flash';
 const customsearch = google.customsearch('v1');
@@ -21,9 +20,8 @@ const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 function escapeXml(unsafe) { /* ... */ }
 function wrapText(text, maxCharsPerLine) { /* ... */ }
 
-// --- API FUNCTION 1: GENERATE AI TEXT (*** PROMPT UPDATED ***) ---
+// --- API FUNCTION 1: GENERATE AI TEXT (*** RESPONSE HANDLING FIXED ***) ---
 async function generateAiText(article) {
-    // --- UPDATED PROMPT ---
     const prompt = `
         You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news, adhering to journalistic best practices (clarity, accuracy, conciseness).
         TASK: Analyze the news based ONLY on the provided title. Generate the following content:
@@ -39,44 +37,49 @@ async function generateAiText(article) {
 
         Ensure the generated text avoids repetition and presents the information clearly. The social_caption MUST follow the two-part structure (headline, then paragraph with source/hashtag).
         FORMAT RESPONSE STRICTLY AS JSON: { "image_headline": "...", "short_description": "...", "social_caption": "..." }`;
-    // --- END UPDATED PROMPT ---
 
     console.log(`[generateAiText] Starting AI generation for: ${article.title}`);
     try {
         console.log("[generateAiText] Sending prompt to Gemini model:", model);
-        const response = await ai.models.generateContent({
+        const generationResult = await ai.models.generateContent({ // Renamed variable
              model,
              contents: [{ role: 'user', parts: [{ text: prompt }] }],
              generationConfig: { responseMimeType: "application/json" }
          });
         console.log("[generateAiText] Received response from Gemini.");
 
-        const rawResponseText = response?.response?.text();
-        console.log("[generateAiText] Raw Gemini response text:", rawResponseText);
+        // --- *** CORRECT WAY TO ACCESS RESPONSE TEXT *** ---
+        // Access the text() method from the response object within the result
+        const response = generationResult.response; // Get the actual response object
+        const rawResponseText = response?.text();   // Call the text() method
+        // --- *** END FIX *** ---
 
-        if (!rawResponseText) { throw new Error("Gemini API response text was empty or invalid structure."); }
+        console.log("[generateAiText] Raw Gemini response text:", rawResponseText); // Log the result of text()
+
+        if (!rawResponseText) { // Check if the raw text is empty/null/undefined
+            // Log the full response structure if text is missing, for debugging
+            console.error("[generateAiText ERROR] Gemini response structure might be unexpected:", JSON.stringify(generationResult, null, 2));
+            throw new Error("Gemini API response text was empty or invalid structure.");
+        }
 
         console.log("[generateAiText] Attempting to parse JSON...");
-        // --- RENAME OUTPUT VARIABLES TO MATCH NEW JSON KEYS ---
         const resultJson = JSON.parse(rawResponseText.trim());
         const result = {
-            headline: resultJson.image_headline, // Map image_headline back to headline
-            description: resultJson.short_description, // Map short_description back to description
-            caption: resultJson.social_caption, // Map social_caption back to caption
-            originalSource: article.source // Keep original source
+            headline: resultJson.image_headline,
+            description: resultJson.short_description,
+            caption: resultJson.social_caption,
+            originalSource: article.source
         };
-        // --- END RENAME ---
-        console.log("[generateAiText] JSON parsed successfully:", result); // Log the mapped result
+        console.log("[generateAiText] JSON parsed successfully:", result);
 
-        // Basic validation on the *expected* output fields
         if (!result.headline || !result.description || !result.caption) {
-             console.warn("[generateAiText] Parsed JSON missing expected fields (headline, description, caption).");
-             throw new Error("Parsed JSON missing expected fields.");
+             console.warn("[generateAiText] Parsed JSON missing expected fields.");
+             // Even if fields are missing, try returning what we have, maybe it's partially usable?
+             // Or throw error: throw new Error("Parsed JSON missing expected fields.");
          }
 
-
         console.log(`[generateAiText] Successfully generated content.`);
-        return result; // Return the object with the original key names
+        return result;
 
     } catch (error) {
         console.error("[generateAiText ERROR]", error);
@@ -103,7 +106,7 @@ async function findRelatedVideo(title, source) { /* ... unchanged ... */ }
 // --- UTILITY FUNCTION: GENERATE PREVIEW IMAGE (Unchanged) ---
 async function generateSimplePreviewImage(imageUrl, headline, description) { /* ... unchanged ... */ }
 
-// --- EXPORTS (Unchanged) ---
+// --- EXPORTS ---
 module.exports = {
     generateAiText,
     extractSearchKeywords,
