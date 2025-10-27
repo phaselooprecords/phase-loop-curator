@@ -414,56 +414,85 @@
         // --- Display Video ---
         function displayVideo(videoUrl, containerId) { /* ... unchanged ... */ }
 
-// --- Call Simple Preview API (ADD LOGGING) ---
+	// --- Call Simple Preview API (ADD MORE LOGGING) ---
         async function startSimplePreviewPipeline(mediaUrl) {
             console.log(`startSimplePreviewPipeline called with URL: ${mediaUrl}`); // Log Function Start
-
-            // Determine if it's an image or video URL
             const isVideo = currentVideoUrl && mediaUrl === currentVideoUrl;
             const isImageUrl = !isVideo;
-
             console.log(`startSimplePreviewPipeline: Is Video? ${isVideo}, Is Image? ${isImageUrl}`); // Log Type
 
+            // Reset state variables *before* attempting generation
             currentVideoUrl = isVideo ? mediaUrl : null;
-            simplePreviewImagePath = isImageUrl ? 'generating' : null;
+            simplePreviewImagePath = null; // Explicitly reset image path
 
             try {
                  if (isImageUrl) {
-                    if (!currentCuratedData) { alert("AI text needed..."); return; }
-                    alert("Generating preview image..."); // Alert should appear if called
-                    console.log("startSimplePreviewPipeline: Proceeding with image generation."); // Log Image Path
+                    if (!currentCuratedData) {
+                         console.error("startSimplePreviewPipeline: AI data not ready.");
+                         alert("AI text is still generating, cannot create preview.");
+                         return;
+                     }
+                    alert("Generating preview image...");
+                    console.log("startSimplePreviewPipeline: Proceeding with image generation for:", mediaUrl);
                     const headline = (currentCuratedData.headline || "N/A").replace(/^\*\*|\*\*$/g, '');
                     const description = currentCuratedData.description; // Use the short_description
-                    const response = await fetch('/api/generate-simple-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: mediaUrl, headline, description }) });
-                    // ... (rest of image generation try block) ...
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                    console.log("startSimplePreviewPipeline: Sending request to /api/generate-simple-preview"); // Log before fetch
+                    const response = await fetch('/api/generate-simple-preview', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ imageUrl: mediaUrl, headline, description })
+                    });
+                    console.log(`startSimplePreviewPipeline: Received response from /api/generate-simple-preview. Status: ${response.status}`); // Log after fetch
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error(`startSimplePreviewPipeline: Error response from server: ${response.status}`, errorText); // Log server error
+                        throw new Error(`Server error generating preview: ${response.status}`);
+                    }
+
+                    console.log("startSimplePreviewPipeline: Trying response.json()..."); // Log before parse
                     const previewData = await response.json();
-                    if (previewData.error || previewData.previewImagePath === '/fallback.png') { alert('Preview Error.'); console.error('Preview generation failed on server.'); return; } // Add console error
-                    simplePreviewImagePath = previewData.previewImagePath;
-                    console.log(`startSimplePreviewPipeline: Image generated: ${simplePreviewImagePath}`); // Log Success
+                    console.log("startSimplePreviewPipeline: Parsed preview data:", previewData); // Log the parsed data
+
+                    // **Crucial Check:** Verify the structure of previewData
+                    if (previewData && previewData.previewImagePath && previewData.previewImagePath !== '/fallback.png') {
+                         simplePreviewImagePath = previewData.previewImagePath; // Store the valid path
+                         console.log(`startSimplePreviewPipeline: Image path set successfully: ${simplePreviewImagePath}`);
+                     } else {
+                         console.error('startSimplePreviewPipeline: Invalid or error data received from server:', previewData);
+                         throw new Error('Preview generation failed on server or returned invalid path.');
+                     }
                  }
                  else if (isVideo) {
-                     alert("Preparing video preview..."); // Alert should appear if called
-                     console.log("startSimplePreviewPipeline: Setting up video preview."); // Log Video Path
+                     alert("Preparing video preview...");
+                     console.log("startSimplePreviewPipeline: Setting up video preview.");
                      displayVideo(mediaUrl, 'simple-preview-video-player');
+                     // Note: currentVideoUrl was already set at the start
                  }
 
-                 // Check if either path exists or video exists
+                 // Check if either path exists or video exists *after* processing
                  if (simplePreviewImagePath || currentVideoUrl) {
-                    console.log("startSimplePreviewPipeline: Setting view to 'simple-preview'."); // Log View Change
-                    setView('simple-preview');
+                    console.log("startSimplePreviewPipeline: Setting view to 'simple-preview'.");
+                    setView('simple-preview'); // Move view change here
                     if (simplePreviewImagePath) {
                          document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now();
                     }
-                    currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false;
+                    // Reset pagination state after selection
+                    currentImageStartIndex = 0;
+                    refreshClicksOnCurrentKeyword = 0;
+                    document.getElementById('refresh-images-btn').disabled = false;
                  } else {
-                     console.warn("startSimplePreviewPipeline: No image path or video URL set after processing."); // Log if nothing happened
+                     // This log should ideally not be reached if error handling above is correct
+                     console.warn("startSimplePreviewPipeline: No image path or video URL set after processing (should have errored before?).");
+                     alert('Preview generation failed unexpectedly.'); // Add alert
                  }
 
             } catch (error) {
-                 console.error('!!! CATCH ERROR in simple preview pipeline:', error); // Log Catch Error
-                 alert('Failed to create preview. Check console.');
-                 simplePreviewImagePath = null; // Reset on error
+                 console.error('!!! CATCH ERROR in simple preview pipeline:', error);
+                 alert(`Failed to create preview: ${error.message}. Check console.`); // Show specific error
+                 simplePreviewImagePath = null; // Ensure reset on error
+                 currentVideoUrl = null; // Ensure reset on error
             }
         }
 
