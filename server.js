@@ -137,22 +137,57 @@ app.post('/api/find-video', async (req, res) => {
 });
 
 
-// Simple Preview Image Generation
+// Simple Preview Image Generation (with detailed logging and error handling)
 app.post('/api/generate-simple-preview', async (req, res) => {
-    console.log("--> Received request for /api/generate-simple-preview");
-    const { imageUrl, headline, description } = req.body;
-    if (!imageUrl || !headline || !description) {
-        return res.status(400).json({ error: 'Missing data for preview.' });
+    // --- Log Entry and Inputs ---
+    console.log("--- /api/generate-simple-preview: Endpoint START ---");
+    // Updated to expect socialCaption based on latest curator.js change
+    const { imageUrl, socialCaption } = req.body;
+    console.log(`[/api/generate-simple-preview] INPUT imageUrl: ${imageUrl}`);
+    // Log start of caption, handle potential undefined/null
+    console.log(`[/api/generate-simple-preview] INPUT socialCaption: ${socialCaption ? socialCaption.substring(0, 80) + '...' : 'N/A'}`);
+    // --- End Log ---
+
+    // Updated validation to check for socialCaption
+    if (!imageUrl || !socialCaption) {
+        console.log("[/api/generate-simple-preview] Validation Failed: Missing imageUrl or socialCaption."); // Log validation fail
+        // Send a specific error response including the fallback path
+        return res.status(400).json({ error: 'Missing data for preview (imageUrl or socialCaption).', previewImagePath: '/fallback.png' });
     }
+
     try {
-        const previewImagePath = await curator.generateSimplePreviewImage(imageUrl, headline, description);
-        res.json({ previewImagePath });
+        console.log("[/api/generate-simple-preview] Calling curator.generateSimplePreviewImage..."); // Log before call
+        // Pass socialCaption to the curator function
+        const previewImagePath = await curator.generateSimplePreviewImage(imageUrl, socialCaption);
+        console.log(`[/api/generate-simple-preview] curator function returned: ${previewImagePath}`); // Log return value
+
+        // --- Explicitly handle fallback path ---
+        if (previewImagePath === '/fallback.png') {
+            console.log("[/api/generate-simple-preview] Curator returned fallback path. Sending error indicator response.");
+            // Send back the fallback path with a 200 status, frontend interprets this as an error
+             res.status(200).json({ previewImagePath: '/fallback.png', error: 'Preview generation failed on server.' });
+        } else if (previewImagePath && typeof previewImagePath === 'string' && previewImagePath.startsWith('/preview_')) {
+             console.log("[/api/generate-simple-preview] Curator returned valid path. Sending success response.");
+             res.status(200).json({ previewImagePath: previewImagePath }); // Send successful path
+        } else {
+             // Handle unexpected return values (null, undefined, etc.)
+             console.error("[/api/generate-simple-preview] Curator returned unexpected value:", previewImagePath);
+             throw new Error('Unexpected return value from image generator.'); // Trigger catch block
+        }
+        // --- End Handling ---
+        console.log("--- /api/generate-simple-preview: Endpoint END (Success Path) ---"); // Log end success
+
     } catch (error) {
-        console.error("!!! ERROR generating simple preview:", error);
-        res.status(500).json({ error: 'Failed to generate simple preview.' });
+        // --- Log Error Explicitly ---
+        console.error("--- /api/generate-simple-preview: CATCH BLOCK ERROR ---"); // Log Catch Entry
+        console.error("[/api/generate-simple-preview ERROR RAW]", error); // Log raw error
+        console.error(`[/api/generate-simple-preview ERROR Message]: ${error.message}`); // Log message
+        console.log("--- /api/generate-simple-preview: Endpoint END (Error Path) ---"); // Log Error End
+        // --- End Log ---
+        // Send a 500 status and the fallback path in case of unexpected errors
+        res.status(500).json({ error: 'Internal server error during preview generation.', previewImagePath: '/fallback.png' });
     }
 });
-
 
 // Social Media Sharing (MOCK-UP)
 app.post('/api/share', async (req, res) => {
