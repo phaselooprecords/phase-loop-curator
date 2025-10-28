@@ -218,14 +218,14 @@
             currentSearchKeywords = []; currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0; currentImageContextUrl = null;
             document.getElementById('refresh-images-btn').disabled = true;
             setView('select');
-            document.getElementById('preview-headline').innerText = "AI Caption Generated Below"; // Updated
-            document.getElementById('preview-description').innerText = ""; // Empty
-            document.getElementById('preview-caption-text').innerText = "Generating AI text..."; // Show loading in caption
+            document.getElementById('preview-headline').innerText = "AI Caption Generated Below";
+            document.getElementById('preview-description').innerText = "";
+            document.getElementById('preview-caption-text').innerText = "Generating AI text...";
             document.getElementById('image-selection-area').innerHTML = "<p>Generating AI text to determine search query...</p>"; document.getElementById('related-articles-list').innerHTML = "<p>Finding related articles...</p>";
             document.getElementById('video-display-area').classList.add('hidden'); document.getElementById('video-player-container').innerHTML = ''; document.getElementById('original-image-container').classList.add('hidden');
             const originalLinkEl = document.getElementById('original-article-link'); originalLinkEl.href = article.link; originalLinkEl.textContent = `View Original Article on ${article.source}`;
             fetchAiText(article);
-            fetchRelatedArticles(article.title, article.source); // Call the function
+            fetchRelatedArticles(article.title, article.source); // This function is now defined
             fetchVideo(article.title, article.source, article.videoUrl);
             if (article.originalImageUrl) { const originalImgEl = document.getElementById('original-image'); const originalImgContainer = document.getElementById('original-image-container'); originalImgEl.src = article.originalImageUrl; originalImgEl.onclick = () => startSimplePreviewPipeline(article.originalImageUrl, article.link); originalImgContainer.classList.remove('hidden'); }
         }
@@ -235,7 +235,6 @@
             console.log("fetchAiText function STARTED.");
             const previewHeadlineEl=document.getElementById('preview-headline'); const previewDescriptionEl=document.getElementById('preview-description'); const previewCaptionEl=document.getElementById('preview-caption-text'); const imageSelectionArea=document.getElementById('image-selection-area');
             if(!previewHeadlineEl||!previewDescriptionEl||!previewCaptionEl||!imageSelectionArea){console.error("fetchAiText Error: Preview elements not found!");return;}
-            // Keep "Generating..." messages
             previewHeadlineEl.innerText = "AI Caption Generated Below";
             previewDescriptionEl.innerText = "";
             previewCaptionEl.innerText = "Generating AI text...";
@@ -250,17 +249,15 @@
                 currentCuratedData=await response.json(); // Expects { headline, description, caption, originalSource }
                 console.log("fetchAiText: Successfully parsed AI text response:",currentCuratedData);
                 
-                // Update UI with received data (headline/desc/caption)
-                previewHeadlineEl.innerText=currentCuratedData.headline||"AI Failed headline."; // This is image_headline
-                previewDescriptionEl.innerText=currentCuratedData.description||"No description."; // This is short_description
-                previewCaptionEl.innerText=(currentCuratedData.caption||"No caption.") + `\n\nNews Source: ${currentCuratedData.originalSource||'Unknown'}`; // This is social_caption
+                // Update UI based on new AI response structure
+                previewHeadlineEl.innerText = currentCuratedData.headline || "AI Failed headline."; // This is image_headline
+                previewDescriptionEl.innerText = currentCuratedData.description || "No description."; // This is short_description
+                previewCaptionEl.innerText = (currentCuratedData.caption || "No caption.") + `\n\nNews Source: ${currentCuratedData.originalSource||'Unknown'}`; // This is social_caption
                 
                 console.log("fetchAiText: Populated AI text to UI.");
                 
-                // Check if AI generation *itself* failed (based on error object from curator)
                 if(currentCuratedData.headline && currentCuratedData.headline !== "AI Failed"){
                     console.log("fetchAiText: Calling fetchPrimaryKeywords...");
-                    // Pass headline/description to keyword extractor
                     fetchPrimaryKeywordsAndStartImageSearch(currentCuratedData.headline, currentCuratedData.description);
                 } else{
                     imageSelectionArea.innerHTML="<p>AI text failed, cannot search images.</p>";
@@ -323,7 +320,7 @@
                          const container = document.createElement('div'); container.className = 'image-container';
                          const img = document.createElement('img'); img.src = imgData.imageUrl; img.alt = `Relevant Image ${startIndex + index + 1}`; img.onerror = function() { this.alt = 'Image failed'; this.style.border = '1px solid red'; };
                          const imageUrlForClick = imgData.imageUrl; const contextUrlForClick = imgData.contextUrl;
-                         img.onclick = () => { console.log(`Image clicked! URL: ${imageUrlForClick}, Context: ${contextUrlForClick}`); startSimplePreviewPipeline(imageUrlForClick, contextUrlForClick); }; // Pass context URL
+                         img.onclick = () => { console.log(`Image clicked! URL: ${imageUrlForClick}, Context: ${contextUrlForClick}`); startSimplePreviewPipeline(imageUrlForClick, contextUrlForClick); };
                          const link = document.createElement('a'); link.href = imgData.contextUrl || '#'; link.textContent = 'View Source Page'; link.target = '_blank'; link.rel = 'noopener noreferrer'; if (!imgData.contextUrl) link.style.display = 'none';
                          const keywordSpan = document.createElement('span'); keywordSpan.className = 'image-keyword'; keywordSpan.textContent = `Keyword: ${imgData.query || 'N/A'}`;
                          const dimensionsSpan = document.createElement('span'); dimensionsSpan.className = 'image-dimensions'; dimensionsSpan.textContent = (imgData.width && imgData.height) ? `${imgData.width} x ${imgData.height}` : `Dimensions N/A`;
@@ -366,7 +363,6 @@
                 console.log(`fetchRelatedArticles: Rendering ${relatedArticles.length} articles.`);
 
                 relatedArticles.forEach(article => {
-                    // Check currentArticleData exists before comparing link
                     if (currentArticleData && article.link === currentArticleData.link) return;
 
                     const el = document.createElement('div');
@@ -386,10 +382,29 @@
         // --- Fetch Video ---
         async function fetchVideo(title, source, rssVideoUrl) {
             let videoUrlToDisplay = rssVideoUrl;
-            if (!videoUrlToDisplay) { /* ... search online ... */ } else { /* ... use RSS URL ... */ }
-            if (videoUrlToDisplay) { currentVideoUrl = videoUrlToDisplay; displayVideo(videoUrlToDisplay, 'video-player-container'); }
-            else { /* ... handle no video ... */ }
+            if (!videoUrlToDisplay) {
+                console.log("[Video] No video in RSS, searching online...");
+                try {
+                    const response = await fetch('/api/find-video', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title: title, source: source })
+                    });
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
+                    videoUrlToDisplay = data.videoUrl;
+                    console.log("[Video] Online search result:", videoUrlToDisplay);
+                } catch (error) { console.error('Error fetching related video:', error); videoUrlToDisplay = null; }
+            } else { console.log("[Video] Using video URL from RSS:", videoUrlToDisplay); }
+
+            if (videoUrlToDisplay) {
+                currentVideoUrl = videoUrlToDisplay;
+                displayVideo(videoUrlToDisplay, 'video-player-container');
+            } else {
+                console.log("[Video] No video found from RSS or search.");
+                document.getElementById('video-display-area').classList.add('hidden');
+            }
         }
+
         // --- Display Video ---
         function displayVideo(videoUrl, containerId) {
             let videoElement = null;
@@ -397,12 +412,28 @@
             if (!container) return;
             container.innerHTML = '';
             const youtubeMatch = videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
-            if (youtubeMatch && youtubeMatch[1]) { /* ... create youtube iframe ... */ }
-            else if (videoUrl.match(/\.(mp4|webm|ogg)$/i)) { /* ... create video tag ... */ }
-            else { /* ... create link ... */ }
+            if (youtubeMatch && youtubeMatch[1]) {
+                 const videoId = youtubeMatch[1];
+                 console.log(`[Video] Embedding YouTube video (${containerId}):`, videoId);
+                 videoElement = document.createElement('iframe');
+                 videoElement.src = `https://www.youtube.com/embed/${videoId}`;
+                 videoElement.frameborder = "0";
+                 videoElement.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+                 videoElement.allowfullscreen = true;
+            } else if (videoUrl.match(/\.(mp4|webm|ogg)$/i)) {
+                  console.log(`[Video] Embedding direct video link (${containerId}):`, videoUrl);
+                  videoElement = document.createElement('video');
+                  videoElement.src = videoUrl;
+                  videoElement.controls = true;
+                  videoElement.preload = "metadata";
+             } else {
+                  console.warn(`[Video] Cannot embed unknown video URL type (${containerId}):`, videoUrl);
+                  container.innerHTML = `<p>Video found: <a href="${videoUrl}" target="_blank" rel="noopener noreferrer">${videoUrl}</a> (Cannot embed player)</p>`;
+              }
             if (videoElement) { container.appendChild(videoElement); }
             if (containerId === 'video-player-container') { document.getElementById('video-display-area').classList.remove('hidden'); }
         }
+
         // --- Call Simple Preview API ---
         async function startSimplePreviewPipeline(mediaUrl, contextUrl = null) {
              console.log(`startSimplePreviewPipeline called with URL: ${mediaUrl}, Context: ${contextUrl}`);
@@ -411,22 +442,15 @@
              currentVideoUrl = isVideo ? mediaUrl : null; simplePreviewImagePath = null; currentImageContextUrl = isImageUrl ? contextUrl : null;
              try {
                   if (isImageUrl) {
-                      if (!currentCuratedData || !currentCuratedData.caption) { // Check for caption
+                      if (!currentCuratedData || !currentCuratedData.caption) {
                            alert("AI caption data is not ready. Cannot generate preview.");
                            return;
                        }
                       alert("Generating preview image...");
                       console.log("startSimplePreviewPipeline: Proceeding with image generation.");
-                      
-                      // *** PASS THE FULL SOCIAL CAPTION ***
-                      const socialCaption = currentCuratedData.caption;
+                      const socialCaption = currentCuratedData.caption; // Use the full social caption
                       console.log("startSimplePreviewPipeline: Sending request to /api/generate-simple-preview");
-                      const response = await fetch('/api/generate-simple-preview', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ imageUrl: mediaUrl, socialCaption: socialCaption }) // Pass caption
-                      });
-                      
+                      const response = await fetch('/api/generate-simple-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: mediaUrl, socialCaption: socialCaption }) });
                       console.log(`startSimplePreviewPipeline: Received response. Status: ${response.status}`);
                       if (!response.ok) { const errorText = await response.text(); console.error(`startSimplePreviewPipeline: Error response: ${response.status}`, errorText); throw new Error(`Server error: ${response.status}`); }
                       console.log("startSimplePreviewPipeline: Trying response.json()...");
@@ -440,11 +464,24 @@
                           throw new Error('Preview generation failed or invalid path.');
                       }
                   }
-                  else if (isVideo) { alert("Preparing video preview..."); console.log("startSimplePreviewPipeline: Setting up video preview."); displayVideo(mediaUrl, 'simple-preview-video-player'); }
-                  if (simplePreviewImagePath || currentVideoUrl) { console.log("startSimplePreviewPipeline: Setting view to 'simple-preview'."); setView('simple-preview'); if (simplePreviewImagePath) { document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now(); } currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false; }
+                  else if (isVideo) {
+                      alert("Preparing video preview...");
+                      console.log("startSimplePreviewPipeline: Setting up video preview.");
+                      displayVideo(mediaUrl, 'simple-preview-video-player');
+                  }
+                  
+                  if (simplePreviewImagePath || currentVideoUrl) {
+                      console.log("startSimplePreviewPipeline: Setting view to 'simple-preview'.");
+                      setView('simple-preview');
+                      if (simplePreviewImagePath) {
+                           document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now();
+                      }
+                      currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false;
+                  }
                   else { console.warn("startSimplePreviewPipeline: No image/video path set."); alert('Preview generation failed.'); }
              } catch (error) { console.error('!!! CATCH ERROR in simple preview pipeline:', error); alert(`Failed to create preview: ${error.message}.`); simplePreviewImagePath = null; currentVideoUrl = null; }
         }
+
         // --- Populate Caption Display ---
         function populateCaptionDisplay() {
              console.log("populateCaptionDisplay: Function called.");
@@ -453,9 +490,8 @@
              console.log("populateCaptionDisplay: currentCuratedData:", currentCuratedData);
              console.log("populateCaptionDisplay: currentImageContextUrl:", currentImageContextUrl);
              
-             // *** UPDATED to show ONLY social_caption + visual source ***
              if (currentCuratedData && currentCuratedData.caption && currentCuratedData.headline !== "AI Failed") {
-                 const caption = currentCuratedData.caption; // This is the full social_caption
+                 const caption = currentCuratedData.caption;
                  let visualSourceLine = "";
                  if (currentImageContextUrl) {
                      try { const urlObject = new URL(currentImageContextUrl); const domain = urlObject.hostname.replace(/^www\./, ''); visualSourceLine = `Visual Source: ${domain}`; } catch (e) { console.warn("Could not parse context URL:", currentImageContextUrl); visualSourceLine = `Visual Source: (See source page)`; }
@@ -463,7 +499,7 @@
                      try { const urlObject = new URL(currentVideoUrl); const domain = urlObject.hostname.replace(/^www\./, ''); visualSourceLine = `Visual Source: ${domain}`; } catch (e) { console.warn("Could not parse video URL:", currentVideoUrl); visualSourceLine = `Visual Source: (See video source)`; }
                  }
                  
-                 const fullText = caption + (visualSourceLine ? `\n\n${visualSourceLine}` : ''); // Add visual source on a new line
+                 const fullText = caption + (visualSourceLine ? `\n\n${visualSourceLine}` : '');
 
                  captionTextArea.value = fullText;
                  console.log("populateCaptionDisplay: Populated text area with AI social caption and visual source.");
@@ -481,7 +517,7 @@
         async function handleShare() {
             if (!simplePreviewImagePath && !currentVideoUrl) { alert("No image/video generated."); return; } if (!currentCuratedData) { alert("AI caption not ready."); return; } const shareTitle = (currentCuratedData.headline || "Phase Loop Post").replace(/^\*\*|\*\*$/g, ''); const shareText = document.getElementById('caption-text-area').value; let shareData = { title: shareTitle, text: shareText, };
             if (navigator.share) { try { if (simplePreviewImagePath && navigator.canShare) { const imageUrl = window.location.origin + simplePreviewImagePath; console.log(`Fetching image for sharing: ${imageUrl}`); const response = await fetch(imageUrl); if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`); const blob = await response.blob(); const fileName = `${shareTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`; const file = new File([blob], fileName, { type: 'image/png' }); if (navigator.canShare({ files: [file] })) { shareData.files = [file]; console.log("Sharing image file/text..."); } else { console.warn("Cannot share image file, sharing text/URL."); shareData.url = imageUrl; } } else if (currentVideoUrl) { console.log("Sharing text/video URL..."); shareData.url = currentVideoUrl; } else { console.log("Sharing text only..."); } await navigator.share(shareData); console.log('Successful share via Web Share API'); alert('Shared successfully!'); currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false; } catch (err) { console.error('Error during Web Share API:', err); if (err.name === 'AbortError') { console.log('Share cancelled.'); } else { alert(`Sharing failed: ${err.message}`); handleCopyCaption(); } } }
-            else { console.log("Web Share. API not supported."); alert("Native sharing not supported. Caption copied."); handleCopyCaption(); }
+            else { console.log("Web Share API not supported."); alert("Native sharing not supported. Caption copied."); handleCopyCaption(); }
         }
         // --- Download Button Logic ---
         function handleDownload() {

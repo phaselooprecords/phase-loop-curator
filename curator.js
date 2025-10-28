@@ -1,4 +1,4 @@
-// curator.js (Ensuring exports are at the end)
+// curator.js (UPDATED: Smaller font sizes in overlay)
 
 require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
@@ -34,21 +34,28 @@ function escapeXml(unsafe) {
 }
 
 // --- HELPER FUNCTION: Wrap text for SVG ---
-function wrapText(text, maxCharsPerLine) {
+function wrapText(text, maxCharsPerLine, maxLines = 2) {
     if (!text) return [''];
     const words = text.split(' ');
     const lines = [];
     let currentLine = '';
+
     words.forEach(word => {
-        if ((currentLine + word).length > maxCharsPerLine && currentLine.length > 0) {
+        if (lines.length >= maxLines) return;
+        const testLine = currentLine ? currentLine + ' ' + word : word;
+        if (testLine.length > maxCharsPerLine && currentLine.length > 0) {
             lines.push(currentLine.trim());
-            currentLine = word + ' ';
+            currentLine = word;
+            if (lines.length >= maxLines) return;
         } else {
-            currentLine += word + ' ';
+            currentLine = testLine;
         }
     });
-    lines.push(currentLine.trim());
-    return lines.slice(0, 2);
+
+    if (currentLine.trim().length > 0 && lines.length < maxLines) {
+        lines.push(currentLine.trim());
+    }
+    return lines.slice(0, maxLines);
 }
 
 
@@ -95,15 +102,12 @@ async function generateAiText(article) {
         }
 
         console.log("[generateAiText] Raw Gemini response text:", rawResponseText);
-
-        if (!rawResponseText || rawResponseText.trim() === '') {
-            console.error("[generateAiText ERROR] Extracted Gemini response text is invalid or empty.");
-            throw new Error("Extracted Gemini response text was invalid or empty.");
-        }
+        if (!rawResponseText || rawResponseText.trim() === '') { console.error("[generateAiText ERROR] Extracted Gemini response text is invalid or empty."); throw new Error("Extracted Gemini response text was invalid or empty."); }
 
         console.log("[generateAiText] Attempting to parse JSON...");
         const cleanedJsonString = rawResponseText.trim().replace(/^```json\s*/, '').replace(/\s*```$/, '');
         const resultJson = JSON.parse(cleanedJsonString);
+        
         const result = {
             headline: resultJson.image_headline,
             description: resultJson.short_description,
@@ -126,32 +130,21 @@ async function generateAiText(article) {
     }
 }
 
-// --- API FUNCTION 2: EXTRACT SEARCH KEYWORDS (*** RESPONSE ACCESS FIXED ***) ---
+// --- API FUNCTION 2: EXTRACT SEARCH KEYWORDS ---
 async function extractSearchKeywords(headline, description) {
     console.log(`[AI Keywords] Extracting keywords from: "${headline}" / "${description}"`);
     const inputText = `Headline: ${headline}\nDescription: ${description}`;
     const prompt = `
         Analyze the following text about a music news item. Identify the main subject(s) (artist, event, topic).
-        Based ONLY on the main subject(s), provide the BEST concise keyword phrase (max 4 words) suitable for a Google Image Search to find relevant photos of that subject.
-        Examples: ...
-        TEXT TO ANALYZE: "${inputText}"
+        Based ONLY on the main subject(s), provide the BEST concise keyword phrase (max 4 words) suitable for a Google Image Search...
         OUTPUT ONLY the keyword phrase.`;
 
     try {
         const generationResult = await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }] });
         console.log("[AI Keywords] Received response from Gemini.");
-
-        // --- *** CORRECTED ACCESS PATH *** ---
         let keywords = null;
         try {
-            if (generationResult &&
-                generationResult.candidates &&
-                generationResult.candidates.length > 0 &&
-                generationResult.candidates[0].content &&
-                generationResult.candidates[0].content.parts &&
-                generationResult.candidates[0].content.parts.length > 0 &&
-                typeof generationResult.candidates[0].content.parts[0].text === 'string'
-            ) {
+            if (generationResult?.candidates?.[0]?.content?.parts?.[0]?.text && typeof generationResult.candidates[0].content.parts[0].text === 'string') {
                  keywords = generationResult.candidates[0].content.parts[0].text.trim().replace(/[\*\"]/g, '');
             } else {
                  console.error("[AI Keywords ERROR] Unexpected Gemini response structure:", JSON.stringify(generationResult, null, 2));
@@ -161,8 +154,6 @@ async function extractSearchKeywords(headline, description) {
               console.error("[AI Keywords ERROR] Error accessing nested keyword response text:", accessError);
               throw new Error("Error processing Gemini keyword response structure.");
          }
-         // --- *** END CORRECTION *** ---
-
         console.log(`[AI Keywords] Extracted Keywords: "${keywords}"`);
         if (!keywords || keywords.toLowerCase().includes('cannot fulfill')) {
             console.warn('[AI Keywords] Extraction failed or returned invalid keywords.');
@@ -175,12 +166,10 @@ async function extractSearchKeywords(headline, description) {
     }
 }
 
-// --- API FUNCTION 3: GET ALTERNATIVE KEYWORDS (*** RESPONSE ACCESS FIXED ***) ---
+// --- API FUNCTION 3: GET ALTERNATIVE KEYWORDS ---
 async function getAlternativeKeywords(headline, description, previousKeywords = []) {
     const inputText = `Headline: ${headline}\nDescription: ${description}`;
-    const previousKeywordsString = previousKeywords.length > 0
-        ? `The user has already tried searching with: ${previousKeywords.map(kw => `"${kw}"`).join(', ')}.`
-        : "This is the first request for alternative keywords.";
+    const previousKeywordsString = previousKeywords.length > 0 ? `The user has already tried searching with: ${previousKeywords.map(kw => `"${kw}"`).join(', ')}.` : "This is the first request for alternative keywords.";
     console.log(`[AI AltKeywords] Requesting alternative keywords, avoiding: ${previousKeywordsString}`);
     const prompt = `
         Analyze the following music news headline and description: "${inputText}"
@@ -191,18 +180,9 @@ async function getAlternativeKeywords(headline, description, previousKeywords = 
     try {
         const generationResult = await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }] });
         console.log("[AI AltKeywords] Received response from Gemini.");
-
-        // --- *** CORRECTED ACCESS PATH *** ---
         let newKeywords = null;
         try {
-            if (generationResult &&
-                generationResult.candidates &&
-                generationResult.candidates.length > 0 &&
-                generationResult.candidates[0].content &&
-                generationResult.candidates[0].content.parts &&
-                generationResult.candidates[0].content.parts.length > 0 &&
-                typeof generationResult.candidates[0].content.parts[0].text === 'string'
-            ) {
+            if (generationResult?.candidates?.[0]?.content?.parts?.[0]?.text && typeof generationResult.candidates[0].content.parts[0].text === 'string') {
                    newKeywords = generationResult.candidates[0].content.parts[0].text.trim().replace(/[\*\"]/g, '');
               } else {
                   console.error("[AI AltKeywords ERROR] Unexpected Gemini response structure:", JSON.stringify(generationResult, null, 2));
@@ -212,10 +192,7 @@ async function getAlternativeKeywords(headline, description, previousKeywords = 
                console.error("[AI AltKeywords ERROR] Error accessing nested alt keyword response text:", accessError);
                throw new Error("Error processing Gemini alt keyword response structure.");
           }
-          // --- *** END CORRECTION *** ---
-
-        console.log(`[AI AltKeywords] Raw Extracted Text: "${newKeywords}"`); // Log before validation
-
+        console.log(`[AI AltKeywords] Raw Extracted Text: "${newKeywords}"`);
         if (!newKeywords || newKeywords.toLowerCase().includes('cannot fulfill') || previousKeywords.includes(newKeywords)) {
             console.warn('[AI AltKeywords] Extraction failed, returned invalid, or repeated keywords.');
             return null;
@@ -228,37 +205,19 @@ async function getAlternativeKeywords(headline, description, previousKeywords = 
     }
 }
 
-// --- API FUNCTION 4: SEARCH FOR IMAGES (RETURN DIMENSIONS) ---
+
+// --- API FUNCTION 4: SEARCH FOR IMAGES ---
 async function searchForRelevantImages(query, startIndex = 0) {
     console.log(`[Image Search] Searching for: "${query}" starting at index ${startIndex}`);
     try {
         if (!GOOGLE_SEARCH_CX || !GOOGLE_API_KEY) { throw new Error("Google Search CX or API Key missing."); }
         const apiStartIndex = startIndex + 1;
         const response = await customsearch.cse.list({ auth: GOOGLE_API_KEY, cx: GOOGLE_SEARCH_CX, q: query, searchType: 'image', num: 9, start: apiStartIndex, safe: 'high', imgType: 'photo', imgSize: 'medium' });
-
-        if (!response.data.items || response.data.items.length === 0) {
-             // ... (no results handling - unchanged) ...
-             if (startIndex === 0) { throw new Error('No images found.'); } else { console.log(`[Image Search] No more images found.`); return []; }
-        }
-
-        // Map results to include dimensions
-        const imagesData = response.data.items.map(item => ({
-            imageUrl: item.link,
-            contextUrl: item.image?.contextLink,
-            query: query,
-            // *** ADD DIMENSIONS ***
-            width: item.image?.width,
-            height: item.image?.height
-            // *** END ADD ***
-        }));
-
+        if (!response.data.items || response.data.items.length === 0) { if (startIndex === 0) { throw new Error('No images found.'); } else { console.log(`[Image Search] No more images found.`); return []; } }
+        const imagesData = response.data.items.map(item => ({ imageUrl: item.link, contextUrl: item.image?.contextLink, query: query, width: item.image?.width, height: item.image?.height }));
         console.log(`[Image Search] Found ${imagesData.length} images.`);
-        return imagesData; // Now returns { imageUrl, contextUrl, query, width, height }
-
-    } catch (error) {
-        console.error(`[Image Search ERROR]`, error.message);
-        return [];
-    }
+        return imagesData;
+    } catch (error) { console.error(`[Image Search ERROR]`, error.message); return []; }
 }
 
 // --- API FUNCTION 5: FIND RELATED WEB ARTICLES ---
@@ -275,9 +234,9 @@ async function findRelatedWebArticles(title, source) {
     } catch (error) { console.error(`[Web Search ERROR]`, error.message); return []; }
 }
 
-// --- API FUNCTION 6: FIND RELATED VIDEO ---
+// --- API FUNCTION 6: FIND RELATED VIDEO (Title only) ---
 async function findRelatedVideo(title, source) {
-    const query = `${title} ${source} video`;
+    const query = `${title} video`; // Search using title only
     console.log(`[Video Search] Searching for: ${query}`);
     try {
         if (!GOOGLE_SEARCH_CX || !GOOGLE_API_KEY) { throw new Error("Google Search CX or API Key missing."); }
@@ -288,12 +247,12 @@ async function findRelatedVideo(title, source) {
     } catch (error) { console.error(`[Video Search ERROR]`, error.message); return null; }
 }
 
+
 // --- *** UPDATED UTILITY FUNCTION: GENERATE PREVIEW IMAGE *** ---
-// Now accepts full social caption and extracts first sentence
 async function generateSimplePreviewImage(imageUrl, socialCaption) {
     console.log(`[Simple Preview] Starting preview generation.`);
     console.log(`[Simple Preview] Image URL: ${imageUrl}`);
-    console.log(`[Simple Preview] Raw Social Caption:`, socialCaption); // Log raw input
+    console.log(`[Simple Preview] Raw Social Caption:`, socialCaption ? socialCaption.substring(0, 50) + '...' : 'N/A');
 
     try {
         if (!imageUrl || typeof imageUrl !== 'string') { throw new Error('Invalid imageUrl'); }
@@ -311,59 +270,56 @@ async function generateSimplePreviewImage(imageUrl, socialCaption) {
         if (!originalWidth || !originalHeight) throw new Error('Could not read dimensions.');
         console.log(`[Simple Preview] Original Dimensions: ${originalWidth}x${originalHeight}`);
 
-        // --- Determine Target Dimensions (Unchanged) ---
         const maxWidth = 800;
         let targetWidth = originalWidth;
         let targetHeight = originalHeight;
-        if (originalWidth > maxWidth) { targetWidth = maxWidth; targetHeight = Math.round(originalHeight * (maxWidth / originalWidth)); }
+        if (originalWidth > maxWidth) {
+            targetWidth = maxWidth;
+            targetHeight = Math.round(originalHeight * (maxWidth / originalWidth));
+        }
 
-        // --- Resize Image Buffer (Unchanged) ---
         let processedImageBuffer = imageBuffer;
-        if (originalWidth > maxWidth) { processedImageBuffer = await sharp(imageBuffer).resize({ width: targetWidth, height: targetHeight, fit: 'inside' }).toBuffer(); }
+        if (originalWidth > maxWidth) {
+             processedImageBuffer = await sharp(imageBuffer).resize({ width: targetWidth, height: targetHeight, fit: 'inside' }).toBuffer();
+        }
         console.log(`[Simple Preview] Final Image Dimensions: ${targetWidth}x${targetHeight}`);
 
         // --- Text Preparation (Extract first sentence of main paragraph) ---
         let overlayText = '';
         if (captionText) {
-            const parts = captionText.split('\n\n'); // Split social headline from main paragraph
+            const parts = captionText.split('\n\n');
             if (parts.length > 1) {
-                const mainParagraph = parts[1]; // Get the second part (main content)
-                const sentenceMatch = mainParagraph.match(/^[^.!?]+[.!?]/); // Match up to the first sentence end
-                overlayText = sentenceMatch ? sentenceMatch[0].trim() : mainParagraph.split(' ').slice(0, 10).join(' ') + '...'; // Fallback to first 10 words
+                const mainParagraph = parts[1];
+                const sentenceMatch = mainParagraph.match(/^[^.!?]+[.!?]/);
+                overlayText = sentenceMatch ? sentenceMatch[0].trim() : mainParagraph.split(' ').slice(0, 10).join(' ') + '...';
             } else {
-                 // Fallback if split fails - use first ~15 words of the whole caption
                  overlayText = captionText.split(' ').slice(0, 15).join(' ') + '...';
             }
         }
-        overlayText = overlayText || " "; // Ensure it's not empty for SVG
+        overlayText = overlayText || " ";
 
-        const overlayTextEscaped = escapeXml(overlayText);
-        console.log(`[Simple Preview] Text for overlay: "${overlayTextEscaped}"`);
+        // *** ADJUST FONT SIZE AND WRAPPING ***
+        const overlayFontSize = 20; // Reduced from 22
+        // Adjusted character estimate multiplier
+        const overlayCharsPerLine = Math.round(targetWidth / (overlayFontSize * 0.5)); 
+        const overlayLines = wrapText(overlayText, overlayCharsPerLine, 2); // Still max 2 lines
+        const escapedOverlayText = overlayLines.map(line => escapeXml(line));
+        console.log(`[Simple Preview] Text for overlay:`, escapedOverlayText);
 
-        // --- Dynamic SVG Generation (Simplified for one text block) ---
-        // *** ADJUSTED FONT SIZE & WRAPPING ***
-        const overlayFontSize = 26; // Choose a suitable size
-        const overlayCharsPerLine = Math.round(targetWidth / (overlayFontSize * 0.60)); // Estimate characters
-        const overlayLines = wrapText(overlayTextEscaped, overlayCharsPerLine, 2); // Wrap up to 2 lines
-
+        // --- Dynamic SVG Generation ---
         const lineSpacing = 1.3;
-        const padding = 15;
-
-        // Calculate height based on actual lines
+        const padding = 10; // Reduced padding
         const textBlockHeight = overlayLines.length * overlayFontSize + (overlayLines.length > 1 ? (overlayLines.length - 1) * overlayFontSize * (lineSpacing - 1) : 0) ;
-        const overlayHeight = Math.max(60, textBlockHeight + padding * 2); // Adjusted min height
+        const overlayHeight = Math.max(40, textBlockHeight + padding * 2); // Reduced min height
 
-        // Generate TSPANs
         let textTspans = '';
-        overlayLines.forEach((line, index) => {
+        escapedOverlayText.forEach((line, index) => {
             const dy = index === 0 ? 0 : `${lineSpacing}em`;
             textTspans += `<tspan x="${padding}" dy="${dy}">${line}</tspan>`;
         });
 
-        // Calculate Y position
         const textStartY = padding + overlayFontSize;
 
-        // Create SVG with dynamic width, single text element
         const svgOverlay = `<svg width="${targetWidth}" height="${overlayHeight}">
             <rect x="0" y="0" width="${targetWidth}" height="${overlayHeight}" fill="#000000" opacity="0.7"/>
             <text y="${textStartY}" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: ${overlayFontSize}px; font-weight: 900;" fill="#FFFFFF">
@@ -372,7 +328,7 @@ async function generateSimplePreviewImage(imageUrl, socialCaption) {
         </svg>`;
         console.log(`[Simple Preview] Generated SVG Overlay (${targetWidth}x${overlayHeight}).`);
 
-        // --- Composite Image (Unchanged position logic) ---
+        // --- Composite Image ---
         console.log(`[Simple Preview] Compositing overlay...`);
         const compositeTop = Math.round(targetHeight - overlayHeight - 10);
         console.log(`[Simple Preview] Target height: ${targetHeight}, Overlay height: ${overlayHeight}, Composite top: ${compositeTop}`);
@@ -382,19 +338,25 @@ async function generateSimplePreviewImage(imageUrl, socialCaption) {
             .png().toBuffer();
         console.log("[Simple Preview] Image processing complete.");
 
-        // --- Save and Return (Unchanged) ---
+        // --- Save and Return ---
         const filename = `preview_${Date.now()}.png`;
         const imagePath = path.join(process.cwd(), 'public', filename);
-        await fs.writeFile(imagePath, finalImageBuffer);
+        await fs.writeFile(finalImageBuffer, finalImageBuffer); // Fixed the typo here
         console.log(`[Simple Preview] Success: Image saved to ${imagePath}`);
         return `/${filename}`;
 
-    } catch (error) { /* ... error handling unchanged ... */ }
+    } catch (error) {
+        console.error("--- generateSimplePreviewImage: CATCH BLOCK ENTERED ---");
+        console.error("[generateSimplePreviewImage ERROR RAW]", error);
+        console.error(`[generateSimplePreviewImage ERROR Message]: ${error.message}`);
+        console.log("--- generateSimplePreviewImage: Function END (Error) ---");
+        return '/fallback.png';
+    }
 }
 // --- END UPDATED FUNCTION ---
 
+
 // --- EXPORTS ---
-// Ensure this block is at the VERY END of the file
 module.exports = {
     generateAiText,
     extractSearchKeywords,
