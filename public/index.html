@@ -1,544 +1,494 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phase Loop Records Curator</title>
-    <style>
-        /* Base Styling + News List Image */
-        body { font-family: Arial, sans-serif; background-color: #000000; color: #f0f0f0; margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: auto; }
-        h1, h2, h3 { color: #ffffff; border-bottom: 2px solid #555; padding-bottom: 10px; text-align: center; margin-bottom: 15px; }
-        h3 { border-bottom: none; font-size: 1.1em; }
-        .article { background-color: #111111; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; border: 1px solid #333; display: flex; align-items: center; }
-        .article-content { flex-grow: 1; }
-        .article h2 { margin-top: 0; font-size: 1.2em; color: #ffffff; border-bottom: none; text-align: left; margin-bottom: 5px; }
-        .article p { font-size: 0.8em; color: #ccc; margin-top: 0;}
-        .article-image { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; margin-right: 15px; flex-shrink: 0; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase Loop Records Curator</title>
+    <style>
+        /* Base Styling + News List Image */
+        body { font-family: Arial, sans-serif; background-color: #000000; color: #f0f0f0; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        h1, h2, h3 { color: #ffffff; border-bottom: 2px solid #555; padding-bottom: 10px; text-align: center; margin-bottom: 15px; }
+        h3 { border-bottom: none; font-size: 1.1em; }
+        .article { background-color: #111111; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; border: 1px solid #333; display: flex; align-items: center; }
+        .article-content { flex-grow: 1; }
+        .article h2 { margin-top: 0; font-size: 1.2em; color: #ffffff; border-bottom: none; text-align: left; margin-bottom: 5px; }
+        .article p { font-size: 0.8em; color: #ccc; margin-top: 0;}
+        .article-image { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; margin-right: 15px; flex-shrink: 0; }
 
-        /* UI State & Image Grid + Context Links */
-        .hidden { display: none; }
-        .image-selection-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 10px; }
-        .image-container { display: flex; flex-direction: column; align-items: center; }
-        .image-container img { width: 100%; height: 120px; object-fit: cover; cursor: pointer; border: 3px solid transparent; border-radius: 4px; margin-bottom: 5px; }
-        .image-container img:hover { border-color: #555; }
-        .image-container a { display: block; text-decoration: none; color: #aaa; font-size: 0.7em; text-align: center; margin-top: 2px; word-break: break-all; }
-        .image-keyword { display: block; color: #777; font-size: 0.6em; text-align: center; margin-top: 1px; font-style: italic; }
-        /* Add this within the <style> tags */
-        .image-dimensions {
-             display: block; color: #666; font-size: 0.6em; text-align: center;
-             margin-top: 1px;
-        }
-
-
-        /* AI Text Preview Styling + Original Link */
-        #ai-text-preview { padding: 15px; background-color: #1a1a1a; margin-bottom: 10px; border-radius: 4px; border: 1px solid #333; }
-        #preview-headline { margin-top: 0; color: #FF6B6B; font-size: 1.4em; border-bottom: none; text-align: left;}
-        #preview-description { font-size: 0.9em; color: #eee; margin-bottom: 10px;}
-        #preview-caption-text { margin-top: 10px; font-style: italic; font-size: 0.9em; border-top: 1px dashed #333; padding-top: 10px; }
-        #original-article-link-container { margin-bottom: 20px; text-align: center; font-size: 0.9em;}
-        #original-article-link-container a { color: #87CEFA; text-decoration: none; }
-        #original-article-link-container a:hover { text-decoration: underline; }
+        /* UI State & Image Grid + Context Links */
+        .hidden { display: none; }
+        .image-selection-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 10px; }
+        .image-container { display: flex; flex-direction: column; align-items: center; }
+        .image-container img { width: 100%; height: 120px; object-fit: cover; cursor: pointer; border: 3px solid transparent; border-radius: 4px; margin-bottom: 5px; }
+        .image-container img:hover { border-color: #555; }
+        .image-container a { display: block; text-decoration: none; color: #aaa; font-size: 0.7em; text-align: center; margin-top: 2px; word-break: break-all; }
+        .image-keyword { display: block; color: #777; font-size: 0.6em; text-align: center; margin-top: 1px; font-style: italic; }
+        .image-dimensions {
+             display: block; color: #666; font-size: 0.6em; text-align: center;
+             margin-top: 1px;
+        }
 
 
-        #original-image-container img { width: 100%; max-width: 400px; margin: 10px auto; display: block; border: 2px solid #444; cursor: pointer; }
-        #related-articles-list { display: flex; flex-direction: column; gap: 8px; }
-        .related-article { background-color: #222; padding: 10px; border-radius: 4px; }
-        .related-article a { color: #87CEFA; text-decoration: none; font-size: 0.9em; }
-        .related-article p { font-size: 0.8em; color: #999; margin: 5px 0 0 0; }
-        #video-display-area { margin-top: 20px; margin-bottom: 20px; }
-        #video-display-area iframe,
-        #video-display-area video { width: 100%; max-width: 560px; aspect-ratio: 16 / 9; display: block; margin: 0 auto; border: 1px solid #333; border-radius: 4px; }
-        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; margin-top: 5px; }
-        button:hover { background-color: #0056b3; }
-        button#refresh-images-btn { background-color: #28a745; margin-left: 10px; }
-        button#download-preview-btn { background-color: #17a2b8; margin-right: 10px; }
-        button.back-button { background-color: #6c757d; margin-left: 10px;}
-        button#share-preview-btn { background-color: #007bff; margin-right: 10px;}
-        button#copy-caption-btn { background-color: #6f42c1; }
-        button#copy-caption-btn:hover { background-color: #5a2e9b; }
-        #simple-preview-image { width: 100%; max-width: 600px; margin: auto; display: block; margin-bottom: 20px; }
-        #ai-caption-display { background-color: #1a1a1a; padding: 15px; margin-top: 20px; border-radius: 4px; border: 1px solid #333; }
-        #ai-caption-display h3 { margin-top: 0; color: #FF6B6B; font-size: 1.4em; border-bottom: none; text-align: left;}
-        #ai-caption-display #caption-text-area { width: 100%; height: 120px; background-color: #222; color: #f0f0f0; border: 1px solid #444; padding: 10px; box-sizing: border-box; resize: vertical; font-family: Arial, sans-serif; font-size: 0.9em; margin-bottom: 10px;}
-        #simple-preview-video-player { width: 100%; max-width: 600px; aspect-ratio: 16 / 9; margin: auto; display: none; margin-bottom: 20px; border: 1px solid #444;}
-    </style>
+        /* AI Text Preview Styling + Original Link */
+        #ai-text-preview { padding: 15px; background-color: #1a1a1a; margin-bottom: 10px; border-radius: 4px; border: 1px solid #333; }
+        #preview-headline { margin-top: 0; color: #FF6B6B; font-size: 1.4em; border-bottom: none; text-align: left;}
+        #preview-description { font-size: 0.9em; color: #eee; margin-bottom: 10px;}
+        #preview-caption-text { margin-top: 10px; font-style: italic; font-size: 0.9em; border-top: 1px dashed #333; padding-top: 10px; }
+        #original-article-link-container { margin-bottom: 20px; text-align: center; font-size: 0.9em;}
+        #original-article-link-container a { color: #87CEFA; text-decoration: none; }
+        #original-article-link-container a:hover { text-decoration: underline; }
+
+
+        #original-image-container img { width: 100%; max-width: 400px; margin: 10px auto; display: block; border: 2px solid #444; cursor: pointer; }
+        #related-articles-list { display: flex; flex-direction: column; gap: 8px; }
+        .related-article { background-color: #222; padding: 10px; border-radius: 4px; }
+        .related-article a { color: #87CEFA; text-decoration: none; font-size: 0.9em; }
+        .related-article p { font-size: 0.8em; color: #999; margin: 5px 0 0 0; }
+        #video-display-area { margin-top: 20px; margin-bottom: 20px; }
+        #video-display-area iframe,
+        #video-display-area video { width: 100%; max-width: 560px; aspect-ratio: 16 / 9; display: block; margin: 0 auto; border: 1px solid #333; border-radius: 4px; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; margin-top: 5px; }
+        button:hover { background-color: #0056b3; }
+        button#refresh-images-btn { background-color: #28a745; margin-left: 10px; }
+        button#download-preview-btn { background-color: #17a2b8; margin-right: 10px; }
+        button.back-button { background-color: #6c757d; margin-left: 10px;}
+        button#share-preview-btn { background-color: #007bff; margin-right: 10px;}
+        button#copy-caption-btn { background-color: #6f42c1; }
+        button#copy-caption-btn:hover { background-color: #5a2e9b; }
+        #simple-preview-image { width: 100%; max-width: 600px; margin: auto; display: block; margin-bottom: 20px; }
+        #ai-caption-display { background-color: #1a1a1a; padding: 15px; margin-top: 20px; border-radius: 4px; border: 1px solid #333; }
+        #ai-caption-display h3 { margin-top: 0; color: #FF6B6B; font-size: 1.4em; border-bottom: none; text-align: left;}
+        #ai-caption-display #caption-text-area { width: 100%; height: 120px; background-color: #222; color: #f0f0f0; border: 1px solid #444; padding: 10px; box-sizing: border-box; resize: vertical; font-family: Arial, sans-serif; font-size: 0.9em; margin-bottom: 10px;}
+        #simple-preview-video-player { width: 100%; max-width: 600px; aspect-ratio: 16 / 9; margin: auto; display: none; margin-bottom: 20px; border: 1px solid #444;}
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>PHASE LOOP RECORDS NEWS FEED</h1>
-        <p>Tap a headline to create the social media post.</p>
+    <div class="container">
+        <h1>PHASE LOOP RECORDS NEWS FEED</h1>
+        <p>Tap a headline to create the social media post.</p>
 
-        <div id="news-list"> Loading news... </div>
+        <div id="news-list"> Loading news... </div>
 
-        <div id="selection-view" class="hidden">
-             <h2>Select Your Post Visual</h2>
-             <div id="ai-text-preview">
-                 <h3 id="preview-headline">Generating AI text...</h3>
-                 <p id="preview-description"></p>
-                 <p id="preview-caption-text"></p>
-             </div>
-             <div id="original-article-link-container">
-                 <a id="original-article-link" href="#" target="_blank" rel="noopener noreferrer">View Original Article</a>
-             </div>
-             <div id="original-image-container" class="hidden">
-                 <h3>Original Article Image:</h3>
-                 <img id="original-image" src="" alt="Original Article Image" />
-             </div>
-             <h3>Relevant Web Images: <button id="refresh-images-btn" disabled>Refresh</button></h3>
-             <div id="image-selection-area" class="image-selection-grid">
-                 <p>Generating AI text to determine search query...</p>
-             </div>
-             <div id="video-display-area" class="hidden">
-                <h3>Related Video:</h3>
-                <div id="video-player-container"></div>
-      .      </div>
-             <h3>Other Sources:</h3>
-             <div id="related-articles-list">
-                 <p>Finding related articles...</p>
-             </div>
-        </div>
+        <div id="selection-view" class="hidden">
+             <h2>Select Your Post Visual</h2>
+             <div id="ai-text-preview">
+                 <h3 id="preview-headline">AI Caption Generated Below</h3>
+                 <p id="preview-description"></p>
+                 <p id="preview-caption-text"></p>
+             </div>
+             <div id="original-article-link-container">
+                 <a id="original-article-link" href="#" target="_blank" rel="noopener noreferrer">View Original Article</a>
+             </div>
+             <div id="original-image-container" class="hidden">
+                 <h3>Original Article Image:</h3>
+                 <img id="original-image" src="" alt="Original Article Image" />
+             </div>
+             <h3>Relevant Web Images: <button id="refresh-images-btn" disabled>Refresh</button></h3>
+             <div id="image-selection-area" class="image-selection-grid">
+                 <p>Generating AI text to determine search query...</p>
+             </div>
+             <div id="video-display-area" class="hidden">
+                <h3>Related Video:</h3>
+                <div id="video-player-container"></div>
+             </div>
+             <h3>Other Sources:</h3>
+             <div id="related-articles-list">
+                 <p>Finding related articles...</p>
+             </div>
+        </div>
 
-        <div id="simple-preview-view" class="hidden">
-            <h2>Quick Preview</h2>
-            <img id="simple-preview-image" src="" alt="Simple Preview" />
-            <div id="simple-preview-video-player" style="display: none;"></div>
+        <div id="simple-preview-view" class="hidden">
+            <h2>Quick Preview</h2>
+            <img id="simple-preview-image" src="" alt="Simple Preview" />
+            <div id="simple-preview-video-player" style="display: none;"></div>
 
-            <div id="ai-caption-display">
-                <h3>AI Caption:</h3>
-                <textarea id="caption-text-area" readonly></textarea>
-                <button id="copy-caption-btn">Copy Caption</button>
-            </div>
+            <div id="ai-caption-display">
+                <h3>AI Caption:</h3>
+                <textarea id="caption-text-area" readonly></textarea>
+                <button id="copy-caption-btn">Copy Caption</button>
+            </div>
 
-            <button id="share-preview-btn">Share Post</button>
-            <button id="download-preview-btn">Download Image</button>
-            <button onclick="setView('select')" class="back-button">Back to Selection</button>
-        </div>
+            <button id="share-preview-btn">Share Post</button>
+            <button id="download-preview-btn">Download Image</button>
+            <button onclick="setView('select')" class="back-button">Back to Selection</button>
+        </div>
 
-    </div>
+    </div>
 
 <script>
-        // --- Global State Variables ---
-        let currentArticleData = null;
-        let currentCuratedData = null;
-        let simplePreviewImagePath = null;
-        let currentVideoUrl = null;
-        const IMAGES_PER_PAGE = 9;
-        let currentSearchKeywords = [];
-        let currentKeywordIndex = 0;
-        let refreshClicksOnCurrentKeyword = 0;
-        let currentImageStartIndex = 0;
-        let currentImageContextUrl = null;
+        // --- Global State Variables ---
+        let currentArticleData = null;
+        let currentCuratedData = null;
+        let simplePreviewImagePath = null;
+        let currentVideoUrl = null;
+        const IMAGES_PER_PAGE = 9;
+        let currentSearchKeywords = [];
+        let currentKeywordIndex = 0;
+        let refreshClicksOnCurrentKeyword = 0;
+        let currentImageStartIndex = 0;
+        let currentImageContextUrl = null;
 
-        // --- Event Listener for DOM Load ---
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("DOM fully loaded and parsed. Calling fetchNews()...");
-            fetchNews();
+        // --- Event Listener for DOM Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM fully loaded and parsed. Calling fetchNews()...");
+            fetchNews();
 
-            // --- Button Listeners ---
-            document.getElementById('refresh-images-btn').onclick = () => {
-                if (currentSearchKeywords.length === 0 || !currentCuratedData) {
-                    alert('Cannot refresh: search keywords not set or AI data missing.'); return;
-                }
-                refreshClicksOnCurrentKeyword++;
-                if (refreshClicksOnCurrentKeyword < 3) {
-                    currentImageStartIndex += IMAGES_PER_PAGE;
-                    const currentKeyword = currentSearchKeywords[currentKeywordIndex];
-                    console.log(`[Refresh] Loading next images for "${currentKeyword}", starting at index ${currentImageStartIndex}`);
-                    fetchImages(currentKeyword, currentImageStartIndex);
-                } else {
-                    console.log(`[Refresh] Reached 3 clicks, requesting alternative keywords...`);
-                    document.getElementById('refresh-images-btn').disabled = true;
-                    fetchAlternativeKeywords();
-                }
-            };
-            document.getElementById('download-preview-btn').onclick = () => handleDownload();
-            document.getElementById('share-preview-btn').onclick = () => handleShare();
-            document.getElementById('copy-caption-btn').onclick = () => handleCopyCaption();
-        });
+            // --- Button Listeners ---
+            document.getElementById('refresh-images-btn').onclick = () => {
+                if (currentSearchKeywords.length === 0 || !currentCuratedData) {
+                    alert('Cannot refresh: search keywords not set or AI data missing.'); return;
+                }
+                refreshClicksOnCurrentKeyword++;
+                if (refreshClicksOnCurrentKeyword < 3) {
+                    currentImageStartIndex += IMAGES_PER_PAGE;
+                    const currentKeyword = currentSearchKeywords[currentKeywordIndex];
+                    console.log(`[Refresh] Loading next images for "${currentKeyword}", starting at index ${currentImageStartIndex}`);
+                    fetchImages(currentKeyword, currentImageStartIndex);
+                } else {
+                    console.log(`[Refresh] Reached 3 clicks, requesting alternative keywords...`);
+                    document.getElementById('refresh-images-btn').disabled = true;
+                    fetchAlternativeKeywords();
+                }
+            };
+            document.getElementById('download-preview-btn').onclick = () => handleDownload();
+            document.getElementById('share-preview-btn').onclick = () => handleShare();
+            document.getElementById('copy-caption-btn').onclick = () => handleCopyCaption();
+        });
 
-        // --- UI View Handler ---
-        function setView(viewId) {
-            console.log(`setView called with ID: ${viewId}`);
-            const newsList = document.getElementById('news-list');
-            const selectionView = document.getElementById('selection-view');
-            const simplePreviewView = document.getElementById('simple-preview-view');
-            if (!newsList || !selectionView || !simplePreviewView) {
-                console.error("setView Error: One or more view elements not found!"); return;
-            }
-            console.log("setView: Found all view elements.");
-            newsList.classList.add('hidden'); selectionView.classList.add('hidden'); simplePreviewView.classList.add('hidden');
-            console.log("setView: Added 'hidden' to all views.");
-            if (viewId === 'list') { newsList.classList.remove('hidden'); console.log("setView: Showing 'news-list'."); }
-            else if (viewId === 'select') { selectionView.classList.remove('hidden'); console.log("setView: Showing 'selection-view'."); }
-            else if (viewId === 'simple-preview') {
-                simplePreviewView.classList.remove('hidden'); console.log("setView: Showing 'simple-preview-view'.");
-                populateCaptionDisplay();
-                const downloadBtn = document.getElementById('download-preview-btn');
-                const imgPreview = document.getElementById('simple-preview-image');
-                const videoPreview = document.getElementById('simple-preview-video-player');
-                if (currentVideoUrl) { imgPreview.style.display = 'none'; videoPreview.style.display = 'block'; downloadBtn.textContent = 'Download/Open Video'; }
-                else { imgPreview.style.display = 'block'; videoPreview.style.display = 'none'; downloadBtn.textContent = 'Download Image'; }
-            }
-        }
+        // --- UI View Handler ---
+        function setView(viewId) {
+            console.log(`setView called with ID: ${viewId}`);
+            const newsList = document.getElementById('news-list');
+            const selectionView = document.getElementById('selection-view');
+            const simplePreviewView = document.getElementById('simple-preview-view');
+            if (!newsList || !selectionView || !simplePreviewView) {
+                console.error("setView Error: One or more view elements not found!"); return;
+            }
+            console.log("setView: Found all view elements.");
+            newsList.classList.add('hidden'); selectionView.classList.add('hidden'); simplePreviewView.classList.add('hidden');
+            console.log("setView: Added 'hidden' to all views.");
+            if (viewId === 'list') { newsList.classList.remove('hidden'); console.log("setView: Showing 'news-list'."); }
+            else if (viewId === 'select') { selectionView.classList.remove('hidden'); console.log("setView: Showing 'selection-view'."); }
+            else if (viewId === 'simple-preview') {
+                simplePreviewView.classList.remove('hidden'); console.log("setView: Showing 'simple-preview-view'.");
+                populateCaptionDisplay();
+                const downloadBtn = document.getElementById('download-preview-btn');
+                const imgPreview = document.getElementById('simple-preview-image');
+                const videoPreview = document.getElementById('simple-preview-video-player');
+                if (currentVideoUrl) { imgPreview.style.display = 'none'; videoPreview.style.display = 'block'; downloadBtn.textContent = 'Download/Open Video'; }
+                else { imgPreview.style.display = 'block'; videoPreview.style.display = 'none'; downloadBtn.textContent = 'Download Image'; }
+            }
+        }
 
-        // --- Fetch Initial News Feed ---
-        async function fetchNews() {
-            console.log("fetchNews function STARTED.");
-            const newsListElement = document.getElementById('news-list');
-            if (!newsListElement) { console.error("CRITICAL ERROR: news-list element NOT FOUND!"); alert("Page structure error."); return; }
-            newsListElement.innerHTML = 'Loading news...';
-            console.log("Set 'Loading news...' text.");
-            try {
-                console.log("Inside try block, BEFORE fetch('/api/news')");
-                const response = await fetch('/api/news');
-                console.log("AFTER fetch('/api/news'), Status:", response.status);
-                if (!response.ok) { console.error("Fetch response NOT ok:", response.status); throw new Error(`HTTP error! status: ${response.status}`); }
-                console.log("Response OK. Trying response.json()...");
-                const articles = await response.json();
-                console.log("Successfully parsed JSON. Number of articles:", articles ? articles.length : 'null/undefined');
-                if (!articles || articles.length === 0) { newsListElement.innerHTML = '<p>No news articles found.</p>'; console.log("No articles found."); return; }
-                newsListElement.innerHTML = '';
-                console.log("Cleared loading message. Starting article loop...");
-                articles.forEach((article, index) => {
-                    const articleElement = document.createElement('div'); articleElement.className = 'article'; articleElement.dataset.link = article.link;
-                    const imgElement = document.createElement('img'); imgElement.className = 'article-image'; imgElement.src = article.originalImageUrl || '/fallback-thumbnail.png'; imgElement.alt = 'Article thumbnail'; imgElement.onerror = function() { this.src='/fallback-thumbnail.png'; };
-                    const contentElement = document.createElement('div'); contentElement.className = 'article-content'; contentElement.innerHTML = `<h2>${article.title}</h2><p>Source: ${article.source} | Published: ${new Date(article.pubDate).toLocaleDateString()}</p>`;
-                    articleElement.appendChild(imgElement); articleElement.appendChild(contentElement);
-                    articleElement.onclick = () => handleArticleTap(article);
-                    newsListElement.appendChild(articleElement);
-                });
-                console.log("Finished processing all articles.");
-            } catch (error) { console.error('!!! CATCH ERROR inside fetchNews:', error); newsListElement.innerHTML = '<p style="color: red;">Failed to load news. Check console.</p>'; }
-        }
+        // --- Fetch Initial News Feed ---
+        async function fetchNews() {
+            console.log("fetchNews function STARTED.");
+            const newsListElement = document.getElementById('news-list');
+            if (!newsListElement) { console.error("CRITICAL ERROR: news-list element NOT FOUND!"); alert("Page structure error."); return; }
+            newsListElement.innerHTML = 'Loading news...';
+            console.log("Set 'Loading news...' text.");
+            try {
+                console.log("Inside try block, BEFORE fetch('/api/news')");
+                const response = await fetch('/api/news');
+                console.log("AFTER fetch('/api/news'), Status:", response.status);
+                if (!response.ok) { console.error("Fetch response NOT ok:", response.status); throw new Error(`HTTP error! status: ${response.status}`); }
+                console.log("Response OK. Trying response.json()...");
+                const articles = await response.json();
+                console.log("Successfully parsed JSON. Number of articles:", articles ? articles.length : 'null/undefined');
+                if (!articles || articles.length === 0) { newsListElement.innerHTML = '<p>No news articles found.</p>'; console.log("No articles found."); return; }
+                newsListElement.innerHTML = '';
+                console.log("Cleared loading message. Starting article loop...");
+                articles.forEach((article, index) => {
+                    const articleElement = document.createElement('div'); articleElement.className = 'article'; articleElement.dataset.link = article.link;
+                    const imgElement = document.createElement('img'); imgElement.className = 'article-image'; imgElement.src = article.originalImageUrl || '/fallback-thumbnail.png'; imgElement.alt = 'Article thumbnail'; imgElement.onerror = function() { this.src='/fallback-thumbnail.png'; };
+                    const contentElement = document.createElement('div'); contentElement.className = 'article-content'; contentElement.innerHTML = `<h2>${article.title}</h2><p>Source: ${article.source} | Published: ${new Date(article.pubDate).toLocaleDateString()}</p>`;
+                    articleElement.appendChild(imgElement); articleElement.appendChild(contentElement);
+                    articleElement.onclick = () => handleArticleTap(article);
+                    newsListElement.appendChild(articleElement);
+                });
+                console.log("Finished processing all articles.");
+            } catch (error) { console.error('!!! CATCH ERROR inside fetchNews:', error); newsListElement.innerHTML = '<p style="color: red;">Failed to load news. Check console.</p>'; }
+        }
 
-        // --- Handle Article Selection ---
-        async function handleArticleTap(article) {
-            console.log("handleArticleTap called for:", article.title);
-            currentArticleData = article; currentCuratedData = null; currentVideoUrl = null; simplePreviewImagePath = null;
-            currentSearchKeywords = []; currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0; currentImageContextUrl = null;
-            document.getElementById('refresh-images-btn').disabled = true;
-            setView('select');
-            document.getElementById('preview-headline').innerText = "Generating AI text..."; document.getElementById('preview-description').innerText = ""; document.getElementById('preview-caption-text').innerText = "";
-            document.getElementById('image-selection-area').innerHTML = "<p>Generating AI text to determine search query...</p>"; document.getElementById('related-articles-list').innerHTML = "<p>Finding related articles...</p>";
-            document.getElementById('video-display-area').classList.add('hidden'); document.getElementById('video-player-container').innerHTML = ''; document.getElementById('original-image-container').classList.add('hidden');
-            const originalLinkEl = document.getElementById('original-article-link'); originalLinkEl.href = article.link; originalLinkEl.textContent = `View Original Article on ${article.source}`;
-            fetchAiText(article); // Trigger AI flow
-            fetchRelatedArticles(article.title, article.source); // Call the function <<--- THIS IS THE CALL
-            fetchVideo(article.title, article.source, article.videoUrl);
-            if (article.originalImageUrl) { const originalImgEl = document.getElementById('original-image'); const originalImgContainer = document.getElementById('original-image-container'); originalImgEl.src = article.originalImageUrl; originalImgEl.onclick = () => startSimplePreviewPipeline(article.originalImageUrl, article.link); originalImgContainer.classList.remove('hidden'); }
-        }
+        // --- Handle Article Selection ---
+        async function handleArticleTap(article) {
+            console.log("handleArticleTap called for:", article.title);
+            currentArticleData = article; currentCuratedData = null; currentVideoUrl = null; simplePreviewImagePath = null;
+            currentSearchKeywords = []; currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0; currentImageContextUrl = null;
+            document.getElementById('refresh-images-btn').disabled = true;
+            setView('select');
+            document.getElementById('preview-headline').innerText = "AI Caption Generated Below"; // Updated
+            document.getElementById('preview-description').innerText = ""; // Empty
+            document.getElementById('preview-caption-text').innerText = "Generating AI text..."; // Show loading in caption
+            document.getElementById('image-selection-area').innerHTML = "<p>Generating AI text to determine search query...</p>"; document.getElementById('related-articles-list').innerHTML = "<p>Finding related articles...</p>";
+            document.getElementById('video-display-area').classList.add('hidden'); document.getElementById('video-player-container').innerHTML = ''; document.getElementById('original-image-container').classList.add('hidden');
+            const originalLinkEl = document.getElementById('original-article-link'); originalLinkEl.href = article.link; originalLinkEl.textContent = `View Original Article on ${article.source}`;
+            fetchAiText(article);
+            fetchRelatedArticles(article.title, article.source); // Call the function
+            fetchVideo(article.title, article.source, article.videoUrl);
+            if (article.originalImageUrl) { const originalImgEl = document.getElementById('original-image'); const originalImgContainer = document.getElementById('original-image-container'); originalImgEl.src = article.originalImageUrl; originalImgEl.onclick = () => startSimplePreviewPipeline(article.originalImageUrl, article.link); originalImgContainer.classList.remove('hidden'); }
+        }
 
-        // --- Fetch AI Text & Trigger Keyword Extraction (*** UPDATED ***) ---
-        async function fetchAiText(article) {
-            console.log("fetchAiText function STARTED.");
-            const previewHeadlineEl=document.getElementById('preview-headline'); const previewDescriptionEl=document.getElementById('preview-description'); const previewCaptionEl=document.getElementById('preview-caption-text'); const imageSelectionArea=document.getElementById('image-selection-area');
-            if(!previewHeadlineEl||!previewDescriptionEl||!previewCaptionEl||!imageSelectionArea){console.error("fetchAiText Error: Preview elements not found!");return;}
-            previewHeadlineEl.innerText="Generating AI text..."; previewDescriptionEl.innerText=""; previewCaptionEl.innerText=""; imageSelectionArea.innerHTML="<p>Generating AI text to determine search query...</p>";
-            console.log("fetchAiText: Set initial 'Generating AI text...' messages.");
-            try{
-                console.log("fetchAiText: Sending request to /api/generate-text for:",article.title);
-                const response=await fetch('/api/generate-text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(article)});
-                console.log("fetchAiText: AFTER fetch('/api/generate-text'), Status:",response.status);
-                if(!response.ok){const errorText=await response.text();console.error("fetchAiText: Fetch response NOT ok:",response.status,errorText);throw new Error(`HTTP error! ${response.status} - ${errorText}`);}
-                console.log("fetchAiText: Response OK. Parsing JSON...");
-                currentCuratedData=await response.json(); // Expects { caption: "...", originalSource: "..." }
-                console.log("fetchAiText: Successfully parsed AI text response:", currentCuratedData);
+        // --- Fetch AI Text & Trigger Keyword Extraction ---
+        async function fetchAiText(article) {
+            console.log("fetchAiText function STARTED.");
+            const previewHeadlineEl=document.getElementById('preview-headline'); const previewDescriptionEl=document.getElementById('preview-description'); const previewCaptionEl=document.getElementById('preview-caption-text'); const imageSelectionArea=document.getElementById('image-selection-area');
+            if(!previewHeadlineEl||!previewDescriptionEl||!previewCaptionEl||!imageSelectionArea){console.error("fetchAiText Error: Preview elements not found!");return;}
+            // Keep "Generating..." messages
+            previewHeadlineEl.innerText = "AI Caption Generated Below";
+            previewDescriptionEl.innerText = "";
+            previewCaptionEl.innerText = "Generating AI text...";
+            imageSelectionArea.innerHTML="<p>Generating AI text to determine search query...</p>";
+            console.log("fetchAiText: Set initial 'Generating AI text...' messages.");
+            try{
+                console.log("fetchAiText: Sending request to /api/generate-text for:",article.title);
+                const response=await fetch('/api/generate-text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(article)});
+                console.log("fetchAiText: AFTER fetch('/api/generate-text'), Status:",response.status);
+                if(!response.ok){const errorText=await response.text();console.error("fetchAiText: Fetch response NOT ok:",response.status,errorText);throw new Error(`HTTP error! ${response.status} - ${errorText}`);}
+                console.log("fetchAiText: Response OK. Parsing JSON...");
+                currentCuratedData=await response.json(); // Expects { headline, description, caption, originalSource }
+                console.log("fetchAiText: Successfully parsed AI text response:",currentCuratedData);
+                
+                // Update UI with received data (headline/desc/caption)
+                previewHeadlineEl.innerText=currentCuratedData.headline||"AI Failed headline."; // This is image_headline
+                previewDescriptionEl.innerText=currentCuratedData.description||"No description."; // This is short_description
+                previewCaptionEl.innerText=(currentCuratedData.caption||"No caption.") + `\n\nNews Source: ${currentCuratedData.originalSource||'Unknown'}`; // This is social_caption
+                
+                console.log("fetchAiText: Populated AI text to UI.");
+                
+                // Check if AI generation *itself* failed (based on error object from curator)
+                if(currentCuratedData.headline && currentCuratedData.headline !== "AI Failed"){
+                    console.log("fetchAiText: Calling fetchPrimaryKeywords...");
+                    // Pass headline/description to keyword extractor
+                    fetchPrimaryKeywordsAndStartImageSearch(currentCuratedData.headline, currentCuratedData.description);
+                } else{
+                    imageSelectionArea.innerHTML="<p>AI text failed, cannot search images.</p>";
+                    console.warn("fetchAiText: AI failed.");
+                }
+            }catch(error){console.error('!!! CATCH ERROR inside fetchAiText:',error);previewHeadlineEl.innerText="Error Generating AI Text";previewDescriptionEl.innerText="Please try another article or check server logs.";previewCaptionEl.innerText="";imageSelectionArea.innerHTML="<p>Error generating AI text.</p>";}
+        }
 
-                // --- Update UI based ONLY on caption and source ---
-                // Clear headline/description from selection view as they aren't directly displayed anymore
-                document.getElementById('preview-headline').innerText = "AI Caption Generated Below"; // Or hide this element
-                document.getElementById('preview-description').innerText = "";
-                // Display caption preview (optional, could be removed if only shown on final page)
-                document.getElementById('preview-caption-text').innerText = (currentCuratedData.caption || "Caption N/A") + `\n\nNews Source: ${currentCuratedData.originalSource || 'Unknown'}`;
-                // --- End Update ---
+        // --- Fetch Primary Keywords & Start Image Search ---
+        async function fetchPrimaryKeywordsAndStartImageSearch(headline, description) {
+            document.getElementById('image-selection-area').innerHTML = '<p>Extracting primary keywords...</p>';
+            try {
+                console.log("fetchPrimaryKeywords: Sending request to /api/extract-keywords");
+                const response = await fetch('/api/extract-keywords', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ headline, description }) });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                let primaryKeyword = data.keywords;
+                if (!primaryKeyword) { console.warn("[Keywords] Primary extraction failed, falling back."); primaryKeyword = currentArticleData.title; document.getElementById('image-selection-area').innerHTML = '<p>Keyword extraction failed, using title...</p>'; }
+                currentSearchKeywords = [primaryKeyword]; currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0;
+                console.log(`[Keywords] Received primary: "${primaryKeyword}", starting image search.`);
+                fetchImages(primaryKeyword, 0);
+            } catch (error) { console.error("Error fetching primary keywords:", error); console.warn("[Keywords] Fetch failed, falling back."); currentSearchKeywords = [currentArticleData.title]; currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0; document.getElementById('image-selection-area').innerHTML = '<p>Keyword fetch failed, using title...</p>'; fetchImages(currentArticleData.title, 0); }
+        }
 
-                console.log("fetchAiText: Populated AI text to UI.");
+        // --- Fetch Alternative Keywords ---
+        async function fetchAlternativeKeywords() {
+            if (!currentCuratedData) { alert("Cannot get alternative keywords."); document.getElementById('refresh-images-btn').disabled = false; return; }
+            const area = document.getElementById('image-selection-area');
+            area.innerHTML += '<p>Searching for alternative keywords...</p>';
+            try {
+                console.log("fetchAlternativeKeywords: Sending request to /api/get-alternative-keywords");
+                const response = await fetch('/api/get-alternative-keywords', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ headline: currentCuratedData.headline, description: currentCuratedData.description, previousKeywords: currentSearchKeywords }) });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                if (data.keywords) { const newKeyword = data.keywords; console.log(`[AltKeywords] Received alternative: "${newKeyword}"`); currentSearchKeywords.push(newKeyword); currentKeywordIndex++; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0; fetchImages(newKeyword, 0); }
+                else { console.warn("[AltKeywords] No suitable alternative found."); alert("No more alternative keywords found."); area.innerHTML += '<p>No alternative keywords found.</p>'; document.getElementById('refresh-images-btn').disabled = true; }
+            } catch (error) { console.error("Error fetching alternative keywords:", error); alert("Failed to get alternative keywords."); area.innerHTML += '<p>Failed to get alternative keywords.</p>'; document.getElementById('refresh-images-btn').disabled = true; }
+        }
 
-                // *** Keyword Extraction - IMPORTANT CHECK ***
-                // If extractSearchKeywords needs headline/desc, we need to adjust
-                // For now, assume it works or modify curator.extractSearchKeywords
-                // Let's try passing the caption's inferred parts
-                const captionParts = (currentCuratedData.caption || '').split('\n\n');
-                const inferredHeadline = captionParts.length > 0 ? captionParts[0] : article.title; // Use caption's headline or fallback
-                const inferredDescription = captionParts.length > 1 ? captionParts[1] : ''; // Use caption's paragraph
-                if (currentCuratedData.caption) {
-                    console.log("fetchAiText: Calling fetchPrimaryKeywords...");
-                    fetchPrimaryKeywordsAndStartImageSearch(inferredHeadline, inferredDescription); // Pass inferred parts
-                } else {
-                    // Fallback if caption itself failed
-                    imageSelectionArea.innerHTML = "<p>AI text failed, cannot search images.</p>";
-                    console.warn("fetchAiText: AI caption generation failed.");
-                }
-            }catch(error){console.error('!!! CATCH ERROR inside fetchAiText:',error);previewHeadlineEl.innerText="Error Generating AI Text";previewDescriptionEl.innerText="Please try another article or check server logs.";previewCaptionEl.innerText="";imageSelectionArea.innerHTML="<p>Error generating AI text.</p>";}
-        }
+	    // --- Fetch Images ---
+        async function fetchImages(query, startIndex) {
+            const area = document.getElementById('image-selection-area'); const refreshBtn = document.getElementById('refresh-images-btn');
+            const isLoadingNewKeyword = startIndex === 0 && refreshClicksOnCurrentKeyword === 0 && currentKeywordIndex > 0;
+            if (startIndex === 0 && !isLoadingNewKeyword) area.innerHTML = `<p>Searching images: "${query}"...</p>`;
+            else if (isLoadingNewKeyword) area.innerHTML = `<p>Trying keyword: "${query}"...</p>`;
+            else { let loadingP = area.querySelector('p.loading-more'); if (!loadingP) { loadingP = document.createElement('p'); loadingP.className = 'loading-more'; area.appendChild(loadingP); } loadingP.textContent = 'Loading more images...'; }
+            refreshBtn.disabled = true;
+            try {
+                console.log(`fetchImages: Sending request for "${query}", start index ${startIndex}`);
+                const response = await fetch('/api/search-images', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query, startIndex: startIndex }) });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                const imagesData = data.images || [];
+                console.log(`fetchImages: Received ${imagesData.length} images.`);
+                if (startIndex === 0) { area.innerHTML = ''; } else { const loadingP = area.querySelector('p.loading-more'); if (loadingP) area.removeChild(loadingP); }
+                if (imagesData.length === 0) { if (startIndex === 0) { area.innerHTML = `<p>No images found for "${query}".</p>`; } else { area.innerHTML += `<p>No more images found.</p>`; } refreshBtn.disabled = (startIndex === 0 || imagesData.length < IMAGES_PER_PAGE); }
+                else {
+                    refreshBtn.disabled = (imagesData.length < IMAGES_PER_PAGE);
+                    imagesData.forEach((imgData, index) => {
+                         const container = document.createElement('div'); container.className = 'image-container';
+                         const img = document.createElement('img'); img.src = imgData.imageUrl; img.alt = `Relevant Image ${startIndex + index + 1}`; img.onerror = function() { this.alt = 'Image failed'; this.style.border = '1px solid red'; };
+                         const imageUrlForClick = imgData.imageUrl; const contextUrlForClick = imgData.contextUrl;
+                         img.onclick = () => { console.log(`Image clicked! URL: ${imageUrlForClick}, Context: ${contextUrlForClick}`); startSimplePreviewPipeline(imageUrlForClick, contextUrlForClick); }; // Pass context URL
+                         const link = document.createElement('a'); link.href = imgData.contextUrl || '#'; link.textContent = 'View Source Page'; link.target = '_blank'; link.rel = 'noopener noreferrer'; if (!imgData.contextUrl) link.style.display = 'none';
+                         const keywordSpan = document.createElement('span'); keywordSpan.className = 'image-keyword'; keywordSpan.textContent = `Keyword: ${imgData.query || 'N/A'}`;
+                         const dimensionsSpan = document.createElement('span'); dimensionsSpan.className = 'image-dimensions'; dimensionsSpan.textContent = (imgData.width && imgData.height) ? `${imgData.width} x ${imgData.height}` : `Dimensions N/A`;
+                         container.appendChild(img); container.appendChild(link); container.appendChild(keywordSpan); container.appendChild(dimensionsSpan);
+                         area.appendChild(container);
+                     });
+                    console.log("fetchImages: Finished rendering images.");
+                 }
+            } catch (error) { console.error('Error fetching images:', error); if (startIndex === 0) { area.innerHTML = `<p>Image search failed for "${query}".</p>`; } else { area.innerHTML += `<p>Failed to load more images.</p>`; } refreshBtn.disabled = true; }
+        }
 
-        // --- Fetch Primary Keywords & Start Image Search ---
-        async function fetchPrimaryKeywordsAndStartImageSearch(headline, description) {
-            document.getElementById('image-selection-area').innerHTML = '<p>Extracting primary keywords...</p>';
-            try {
-                console.log("fetchPrimaryKeywords: Sending request to /api/extract-keywords");
-                const response = await fetch('/api/extract-keywords', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ headline, description }) });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                let primaryKeyword = data.keywords;
-                if (!primaryKeyword) { console.warn("[Keywords] Primary extraction failed, falling back."); primaryKeyword = currentArticleData.title; document.getElementById('image-selection-area').innerHTML = '<p>Keyword extraction failed, using title...</p>'; }
-                currentSearchKeywords = [primaryKeyword]; currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0;
-                console.log(`[Keywords] Received primary: "${primaryKeyword}", starting image search.`);
-                fetchImages(primaryKeyword, 0);
-            } catch (error) { console.error("Error fetching primary keywords:", error); console.warn("[Keywords] Fetch failed, falling back."); currentSearchKeywords = [currentArticleData.title]; currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0; document.getElementById('image-selection-area').innerHTML = '<p>Keyword fetch failed, using title...</p>'; fetchImages(currentArticleData.title, 0); }
-        }
+        // --- *** RESTORED: Fetch Related Articles *** ---
+        async function fetchRelatedArticles(title, source) {
+            const list = document.getElementById('related-articles-list');
+            if (!list) { console.error("fetchRelatedArticles Error: List element not found!"); return; }
+            list.innerHTML = "<p>Finding related articles...</p>";
+            console.log(`fetchRelatedArticles: Searching for articles related to "${title}" from "${source}"`);
 
-        // --- Fetch Alternative Keywords ---
-        async function fetchAlternativeKeywords() {
-            if (!currentCuratedData) { alert("Cannot get alternative keywords."); document.getElementById('refresh-images-btn').disabled = false; return; }
-            const area = document.getElementById('image-selection-area');
-            area.innerHTML += '<p>Searching for alternative keywords...</p>';
-            try {
-                console.log("fetchAlternativeKeywords: Sending request to /api/get-alternative-keywords");
-                // NOTE: This still sends headline/description, which might be inferred.
-                // If this fails, the API /api/get-alternative-keywords might need to accept a 'caption' instead.
-                const captionParts = (currentCuratedData.caption || '').split('\n\n');
-                const inferredHeadline = captionParts.length > 0 ? captionParts[0] : currentArticleData.title;
-                const inferredDescription = captionParts.length > 1 ? captionParts[1] : '';
+            try {
+                const response = await fetch('/api/find-related-articles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: title, source: source })
+                });
+                console.log(`fetchRelatedArticles: Response Status: ${response.status}`);
 
-                const response = await fetch('/api/get-alternative-keywords', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ headline: inferredHeadline, description: inferredDescription, previousKeywords: currentSearchKeywords }) });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                if (data.keywords) { const newKeyword = data.keywords; console.log(`[AltKeywords] Received alternative: "${newKeyword}"`); currentSearchKeywords.push(newKeyword); currentKeywordIndex++; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0; fetchImages(newKeyword, 0); }
-                else { console.warn("[AltKeywords] No suitable alternative found."); alert("No more alternative keywords found."); area.innerHTML += '<p>No alternative keywords found.</p>'; document.getElementById('refresh-images-btn').disabled = true; }
-            } catch (error) { console.error("Error fetching alternative keywords:", error); alert("Failed to get alternative keywords."); area.innerHTML += '<p>Failed to get alternative keywords.</p>'; document.getElementById('refresh-images-btn').disabled = true; }
-        }
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-	    // --- Fetch Images ---
-        async function fetchImages(query, startIndex) {
-            const area = document.getElementById('image-selection-area'); const refreshBtn = document.getElementById('refresh-images-btn');
-            const isLoadingNewKeyword = startIndex === 0 && refreshClicksOnCurrentKeyword === 0 && currentKeywordIndex > 0;
-            if (startIndex === 0 && !isLoadingNewKeyword) area.innerHTML = `<p>Searching images: "${query}"...</p>`;
-            else if (isLoadingNewKeyword) area.innerHTML = `<p>Trying keyword: "${query}"...</p>`;
-            else { let loadingP = area.querySelector('p.loading-more'); if (!loadingP) { loadingP = document.createElement('p'); loadingP.className = 'loading-more'; area.appendChild(loadingP); } loadingP.textContent = 'Loading more images...'; }
-            refreshBtn.disabled = true;
-            try {
-                console.log(`fetchImages: Sending request for "${query}", start index ${startIndex}`);
-                const response = await fetch('/api/search-images', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query, startIndex: startIndex }) });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                const imagesData = data.images || [];
-                console.log(`fetchImages: Received ${imagesData.length} images.`);
-                if (startIndex === 0) { area.innerHTML = ''; } else { const loadingP = area.querySelector('p.loading-more'); if (loadingP) area.removeChild(loadingP); }
-                if (imagesData.length === 0) { if (startIndex === 0) { area.innerHTML = `<p>No images found for "${query}".</p>`; } else { area.innerHTML += `<p>No more images found.</p>`; } refreshBtn.disabled = (startIndex === 0 || imagesData.length < IMAGES_PER_PAGE); }
-                else {
-                    refreshBtn.disabled = (imagesData.length < IMAGES_PER_PAGE);
-                    imagesData.forEach((imgData, index) => {
-                         const container = document.createElement('div'); container.className = 'image-container';
-                         const img = document.createElement('img'); img.src = imgData.imageUrl; img.alt = `Relevant Image ${startIndex + index + 1}`; img.onerror = function() { this.alt = 'Image failed'; this.style.border = '1px solid red'; };
-                         const imageUrlForClick = imgData.imageUrl; const contextUrlForClick = imgData.contextUrl;
-                         img.onclick = () => { console.log(`Image clicked! URL: ${imageUrlForClick}, Context: ${contextUrlForClick}`); startSimplePreviewPipeline(imageUrlForClick, contextUrlForClick); }; // Pass context URL
-                         const link = document.createElement('a'); link.href = imgData.contextUrl || '#'; link.textContent = 'View Source Page'; link.target = '_blank'; link.rel = 'noopener noreferrer'; if (!imgData.contextUrl) link.style.display = 'none';
-                         const keywordSpan = document.createElement('span'); keywordSpan.className = 'image-keyword'; keywordSpan.textContent = `Keyword: ${imgData.query || 'N/A'}`;
-                         const dimensionsSpan = document.createElement('span'); dimensionsSpan.className = 'image-dimensions'; dimensionsSpan.textContent = (imgData.width && imgData.height) ? `${imgData.width} x ${imgData.height}` : `Dimensions N/A`;
-                         container.appendChild(img); container.appendChild(link); container.appendChild(keywordSpan); container.appendChild(dimensionsSpan);
-                         area.appendChild(container);
-                     });
-                    console.log("fetchImages: Finished rendering images.");
-                 }
-            } catch (error) { console.error('Error fetching images:', error); if (startIndex === 0) { area.innerHTML = `<p>Image search failed for "${query}".</p>`; } else { area.innerHTML += `<p>Failed to load more images.</p>`; } refreshBtn.disabled = true; }
-        }
+                const data = await response.json();
+                console.log("fetchRelatedArticles: Received data:", data);
 
-        // --- *** RESTORED: Fetch Related Articles *** ---
-        async function fetchRelatedArticles(title, source) {
-            const list = document.getElementById('related-articles-list');
-            if (!list) { console.error("fetchRelatedArticles Error: List element not found!"); return; }
-            list.innerHTML = "<p>Finding related articles...</p>";
-            console.log(`fetchRelatedArticles: Searching for articles related to "${title}" from "${source}"`);
+                const relatedArticles = data.relatedArticles || [];
 
-            try {
-                const response = await fetch('/api/find-related-articles', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: title, source: source })
-                });
-                console.log(`fetchRelatedArticles: Response Status: ${response.status}`);
+                list.innerHTML = '';
+                if (relatedArticles.length === 0) {
+                    list.innerHTML = "<p>No other sources found.</p>";
+                    console.log("fetchRelatedArticles: No related articles found in response.");
+                    return;
+                }
+                console.log(`fetchRelatedArticles: Rendering ${relatedArticles.length} articles.`);
 
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                relatedArticles.forEach(article => {
+                    // Check currentArticleData exists before comparing link
+                    if (currentArticleData && article.link === currentArticleData.link) return;
 
-                const data = await response.json();
-                console.log("fetchRelatedArticles: Received data:", data);
+                    const el = document.createElement('div');
+                    el.className = 'related-article';
+                    el.innerHTML = `<a href="${article.link}" target="_blank" rel="noopener noreferrer">${article.title}</a><p>${article.source}</p>`;
+                    list.appendChild(el);
+                });
+                console.log("fetchRelatedArticles: Finished rendering.");
 
-                const relatedArticles = data.relatedArticles || [];
+            } catch (error) {
+                console.error('!!! CATCH ERROR fetching related articles:', error);
+                list.innerHTML = "<p style='color: red;'>Related article search failed.</p>";
+            }
+        }
+        // --- *** END RESTORED *** ---
 
-                list.innerHTML = '';
-                if (relatedArticles.length === 0) {
-                    list.innerHTML = "<p>No other sources found.</p>";
-                    console.log("fetchRelatedArticles: No related articles found in response.");
-                    return;
-                }
-            _   console.log(`fetchRelatedArticles: Rendering ${relatedArticles.length} articles.`);
+        // --- Fetch Video ---
+        async function fetchVideo(title, source, rssVideoUrl) {
+            let videoUrlToDisplay = rssVideoUrl;
+            if (!videoUrlToDisplay) { /* ... search online ... */ } else { /* ... use RSS URL ... */ }
+            if (videoUrlToDisplay) { currentVideoUrl = videoUrlToDisplay; displayVideo(videoUrlToDisplay, 'video-player-container'); }
+            else { /* ... handle no video ... */ }
+        }
+        // --- Display Video ---
+        function displayVideo(videoUrl, containerId) {
+            let videoElement = null;
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+            const youtubeMatch = videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+            if (youtubeMatch && youtubeMatch[1]) { /* ... create youtube iframe ... */ }
+            else if (videoUrl.match(/\.(mp4|webm|ogg)$/i)) { /* ... create video tag ... */ }
+            else { /* ... create link ... */ }
+            if (videoElement) { container.appendChild(videoElement); }
+            if (containerId === 'video-player-container') { document.getElementById('video-display-area').classList.remove('hidden'); }
+        }
+        // --- Call Simple Preview API ---
+        async function startSimplePreviewPipeline(mediaUrl, contextUrl = null) {
+             console.log(`startSimplePreviewPipeline called with URL: ${mediaUrl}, Context: ${contextUrl}`);
+             const isVideo = currentVideoUrl && mediaUrl === currentVideoUrl; const isImageUrl = !isVideo;
+             console.log(`startSimplePreviewPipeline: Is Video? ${isVideo}, Is Image? ${isImageUrl}`);
+             currentVideoUrl = isVideo ? mediaUrl : null; simplePreviewImagePath = null; currentImageContextUrl = isImageUrl ? contextUrl : null;
+             try {
+                  if (isImageUrl) {
+                      if (!currentCuratedData || !currentCuratedData.caption) { // Check for caption
+                           alert("AI caption data is not ready. Cannot generate preview.");
+                           return;
+                       }
+                      alert("Generating preview image...");
+                      console.log("startSimplePreviewPipeline: Proceeding with image generation.");
+                      
+                      // *** PASS THE FULL SOCIAL CAPTION ***
+                      const socialCaption = currentCuratedData.caption;
+                      console.log("startSimplePreviewPipeline: Sending request to /api/generate-simple-preview");
+                      const response = await fetch('/api/generate-simple-preview', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ imageUrl: mediaUrl, socialCaption: socialCaption }) // Pass caption
+                      });
+                      
+                      console.log(`startSimplePreviewPipeline: Received response. Status: ${response.status}`);
+                      if (!response.ok) { const errorText = await response.text(); console.error(`startSimplePreviewPipeline: Error response: ${response.status}`, errorText); throw new Error(`Server error: ${response.status}`); }
+                      console.log("startSimplePreviewPipeline: Trying response.json()...");
+                      const previewData = await response.json();
+                      console.log("startSimplePreviewPipeline: Parsed preview data:", previewData);
+                      if (previewData && previewData.previewImagePath && previewData.previewImagePath !== '/fallback.png') {
+                          simplePreviewImagePath = previewData.previewImagePath;
+                          console.log(`startSimplePreviewPipeline: Image path set: ${simplePreviewImagePath}`);
+                      } else {
+                          console.error('startSimplePreviewPipeline: Invalid data received:', previewData);
+                          throw new Error('Preview generation failed or invalid path.');
+                      }
+                  }
+                  else if (isVideo) { alert("Preparing video preview..."); console.log("startSimplePreviewPipeline: Setting up video preview."); displayVideo(mediaUrl, 'simple-preview-video-player'); }
+                  if (simplePreviewImagePath || currentVideoUrl) { console.log("startSimplePreviewPipeline: Setting view to 'simple-preview'."); setView('simple-preview'); if (simplePreviewImagePath) { document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now(); } currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false; }
+                  else { console.warn("startSimplePreviewPipeline: No image/video path set."); alert('Preview generation failed.'); }
+             } catch (error) { console.error('!!! CATCH ERROR in simple preview pipeline:', error); alert(`Failed to create preview: ${error.message}.`); simplePreviewImagePath = null; currentVideoUrl = null; }
+        }
+        // --- Populate Caption Display ---
+        function populateCaptionDisplay() {
+             console.log("populateCaptionDisplay: Function called.");
+             const captionTextArea = document.getElementById('caption-text-area');
+             if (!captionTextArea) { console.error("populateCaptionDisplay Error: Text area element not found!"); return; }
+             console.log("populateCaptionDisplay: currentCuratedData:", currentCuratedData);
+             console.log("populateCaptionDisplay: currentImageContextUrl:", currentImageContextUrl);
+             
+             // *** UPDATED to show ONLY social_caption + visual source ***
+             if (currentCuratedData && currentCuratedData.caption && currentCuratedData.headline !== "AI Failed") {
+                 const caption = currentCuratedData.caption; // This is the full social_caption
+                 let visualSourceLine = "";
+                 if (currentImageContextUrl) {
+                     try { const urlObject = new URL(currentImageContextUrl); const domain = urlObject.hostname.replace(/^www\./, ''); visualSourceLine = `Visual Source: ${domain}`; } catch (e) { console.warn("Could not parse context URL:", currentImageContextUrl); visualSourceLine = `Visual Source: (See source page)`; }
+                 } else if (currentVideoUrl) {
+                     try { const urlObject = new URL(currentVideoUrl); const domain = urlObject.hostname.replace(/^www\./, ''); visualSourceLine = `Visual Source: ${domain}`; } catch (e) { console.warn("Could not parse video URL:", currentVideoUrl); visualSourceLine = `Visual Source: (See video source)`; }
+                 }
+                 
+                 const fullText = caption + (visualSourceLine ? `\n\n${visualSourceLine}` : ''); // Add visual source on a new line
 
-                relatedArticles.forEach(article => {
-                    // Check currentArticleData exists before comparing link
-                    if (currentArticleData && article.link === currentArticleData.link) return;
+                 captionTextArea.value = fullText;
+                 console.log("populateCaptionDisplay: Populated text area with AI social caption and visual source.");
+             
+             } else {
+                 captionTextArea.value = "AI Caption data is not available or generation failed.";
+                 console.log("populateCaptionDisplay: Populated with error message.");
+             }
+        }
+        // --- Handle Copy Caption ---
+        async function handleCopyCaption() {
+            const captionTextArea = document.getElementById('caption-text-area'); try { await navigator.clipboard.writeText(captionTextArea.value); alert("Caption copied!"); } catch (err) { console.error('Failed to copy:', err); alert("Failed to copy."); captionTextArea.select(); }
+        }
+        // --- Share Button Logic ---
+        async function handleShare() {
+            if (!simplePreviewImagePath && !currentVideoUrl) { alert("No image/video generated."); return; } if (!currentCuratedData) { alert("AI caption not ready."); return; } const shareTitle = (currentCuratedData.headline || "Phase Loop Post").replace(/^\*\*|\*\*$/g, ''); const shareText = document.getElementById('caption-text-area').value; let shareData = { title: shareTitle, text: shareText, };
+            if (navigator.share) { try { if (simplePreviewImagePath && navigator.canShare) { const imageUrl = window.location.origin + simplePreviewImagePath; console.log(`Fetching image for sharing: ${imageUrl}`); const response = await fetch(imageUrl); if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`); const blob = await response.blob(); const fileName = `${shareTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`; const file = new File([blob], fileName, { type: 'image/png' }); if (navigator.canShare({ files: [file] })) { shareData.files = [file]; console.log("Sharing image file/text..."); } else { console.warn("Cannot share image file, sharing text/URL."); shareData.url = imageUrl; } } else if (currentVideoUrl) { console.log("Sharing text/video URL..."); shareData.url = currentVideoUrl; } else { console.log("Sharing text only..."); } await navigator.share(shareData); console.log('Successful share via Web Share API'); alert('Shared successfully!'); currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false; } catch (err) { console.error('Error during Web Share API:', err); if (err.name === 'AbortError') { console.log('Share cancelled.'); } else { alert(`Sharing failed: ${err.message}`); handleCopyCaption(); } } }
+            else { console.log("Web Share. API not supported."); alert("Native sharing not supported. Caption copied."); handleCopyCaption(); }
+        }
+        // --- Download Button Logic ---
+        function handleDownload() {
+            let didDownload = false; if (currentVideoUrl) { alert("Opening video URL..."); window.open(currentVideoUrl, '_blank'); didDownload = true; } else if (simplePreviewImagePath) { if (!currentCuratedData) { alert("AI data needed for filename."); return; } const link = document.createElement('a'); link.href = simplePreviewImagePath; const cleanedHeadlineText = (currentCuratedData?.headline || 'phaseloop-post').replace(/^\*\*|\*\*$/g, '').replace(/[^a-z0-9]/gi, '_').toLowerCase(); link.download = `${cleanedHeadlineText}.png`; document.body.appendChild(link); link.click(); document.body.removeChild(link); didDownload = true; } else { alert("No image/video available."); }
+            if (didDownload) { currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false; }
+        }
 
-                    const el = document.createElement('div');
-                    el.className = 'related-article';
-                    el.innerHTML = `<a href="${article.link}" target="_blank" rel="noopener noreferrer">${article.title}</a><p>${article.source}</p>`;
-                    list.appendChild(el);
-                });
-                console.log("fetchRelatedArticles: Finished rendering.");
-
-            } catch (error) {
-                console.error('!!! CATCH ERROR fetching related articles:', error);
-                list.innerHTML = "<p style='color: red;'>Related article search failed.</p>";
-            }
-        }
-  _     // --- *** END RESTORED *** ---
-
-        // --- Fetch Video ---
-        async function fetchVideo(title, source, rssVideoUrl) {
-            let videoUrlToDisplay = rssVideoUrl;
-            if (!videoUrlToDisplay) { /* ... search online ... */ } else { /* ... use RSS URL ... */ }
-            if (videoUrlToDisplay) { currentVideoUrl = videoUrlToDisplay; displayVideo(videoUrlToDisplay, 'video-player-container'); }
-            else { /* ... handle no video ... */ }
-        }
-        // --- Display Video ---
-        function displayVideo(videoUrl, containerId) {
-            // NOTE: Need to declare videoElement if it's used later
-            let videoElement = null; // Declare variable
-            const container = document.getElementById(containerId);
-            if (!container) return; // Add check for container
-            container.innerHTML = ''; // Clear previous video/message
-            const youtubeMatch = videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
-
-            if (youtubeMatch && youtubeMatch[1]) {
-                 const videoId = youtubeMatch[1];
-                 console.log(`[Video] Embedding YouTube video (${containerId}):`, videoId);
-                 videoElement = document.createElement('iframe');
-                 videoElement.src = `https://www.youtube.com/embed/${videoId}`;
-                 videoElement.frameborder = "0";
-                 videoElement.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-                 videoElement.allowfullscreen = true;
-            } else if (videoUrl.match(/\.(mp4|webm|ogg)$/i)) {
-                  console.log(`[Video] Embedding direct video link (${containerId}):`, videoUrl);
-                  videoElement = document.createElement('video');
-                  videoElement.src = videoUrl;
-                  videoElement.controls = true;
-                  videoElement.preload = "metadata";
-             } else {
-                  console.warn(`[Video] Cannot embed unknown video URL type (${containerId}):`, videoUrl);
-                  container.innerHTML = `<p>Video found: <a href="${videoUrl}" target="_blank" rel="noopener noreferrer">${videoUrl}</a> (Cannot embed player)</p>`;
-              }
-
-            if (videoElement) { container.appendChild(videoElement); } // Check if element was created
-            if (containerId === 'video-player-container') { document.getElementById('video-display-area').classList.remove('hidden'); }
-        }
-
-        // --- Call Simple Preview API (*** UPDATED TO SEND CAPTION ***) ---
-        async function startSimplePreviewPipeline(mediaUrl, contextUrl = null) {
-            console.log(`startSimplePreviewPipeline called with URL: ${mediaUrl}, Context: ${contextUrl}`);
-            const isVideo = currentVideoUrl && mediaUrl === currentVideoUrl;
-            const isImageUrl = !isVideo;
-            console.log(`startSimplePreviewPipeline: Is Video? ${isVideo}, Is Image? ${isImageUrl}`);
-            currentVideoUrl = isVideo ? mediaUrl : null; simplePreviewImagePath = null; currentImageContextUrl = isImageUrl ? contextUrl : null;
-
-            try {
-                 if (isImageUrl) {
-                    if (!currentCuratedData || !currentCuratedData.caption) { // Check for caption specifically
-                         alert("AI caption data is needed to generate the image overlay.");
-                         return;
-                     }
-                    alert("Generating preview image...");
-                    console.log("startSimplePreviewPipeline: Proceeding with image generation.");
-
-                    // *** Send currentCuratedData.caption instead of headline/description ***
-                    const socialCaption = currentCuratedData.caption;
-                    console.log("startSimplePreviewPipeline: Sending request to /api/generate-simple-preview");
-                    const response = await fetch('/api/generate-simple-preview', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ imageUrl: mediaUrl, socialCaption: socialCaption }) // Pass caption
-                    });
-                    // *** End Change ***
-
-                    console.log(`startSimplePreviewPipeline: Received response. Status: ${response.status}`);
-                    if (!response.ok) { const errorText = await response.text(); console.error(`startSimplePreviewPipeline: Error response: ${response.status}`, errorText); throw new Error(`Server error: ${response.status}`); }
-                    console.log("startSimplePreviewPipeline: Trying response.json()...");
-                    const previewData = await response.json();
-                    console.log("startSimplePreviewPipeline: Parsed preview data:", previewData);
-                    if (previewData && previewData.previewImagePath && previewData.previewImagePath !== '/fallback.png') {
-                         simplePreviewImagePath = previewData.previewImagePath;
-                         console.log(`startSimplePreviewPipeline: Image path set: ${simplePreviewImagePath}`);
-                     } else {
-                         console.error('startSimplePreviewPipeline: Invalid data received:', previewData);
-                         throw new Error('Preview generation failed or invalid path.');
-                     }
-                 }
-                 else if (isVideo) {
-                    alert("Preparing video preview...");
-                    console.log("startSimplePreviewPipeline: Setting up video preview.");
-                    displayVideo(mediaUrl, 'simple-preview-video-player');
-                 }
-
-                 if (simplePreviewImagePath || currentVideoUrl) {
-                    console.log("startSimplePreviewPipeline: Setting view to 'simple-preview'.");
-                    setView('simple-preview');
-                    if (simplePreviewImagePath) { document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now(); }
-                    currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false;
-                 }
-                 else {
-                    console.warn("startSimplePreviewPipeline: No image/video path set.");
-                    alert('Preview generation failed.');
-                 }
-             } catch (error) {
-                console.error('!!! CATCH ERROR in simple preview pipeline:', error);
-                alert(`Failed to create preview: ${error.message}.`);
-                simplePreviewImagePath = null; currentVideoUrl = null;
-             }
-        }
-
-        // --- Populate Caption Display (*** UPDATED TO USE ONLY CAPTION ***) ---
-        function populateCaptionDisplay() {
-            console.log("populateCaptionDisplay: Function called.");
-            const captionTextArea = document.getElementById('caption-text-area');
-            if (!captionTextArea) { console.error("populateCaptionDisplay Error: Text area not found!"); return; }
-            console.log("populateCaptionDisplay: currentCuratedData:", currentCuratedData);
-
-            // Use only the social_caption which should contain everything needed
-            // The 'headline !== "AI Failed"' check is kept from the original logic as a safety
-            if (currentCuratedData && currentCuratedData.caption && currentCuratedData.headline !== "AI Failed") {
-                 captionTextArea.value = currentCuratedData.caption; // Directly use the AI social caption
-                 console.log("populateCaptionDisplay: Populated text area with AI social caption.");
-            } else {
-                captionTextArea.value = "AI Caption data is not available or generation failed.";
-                console.log("populateCaptionDisplay: Populated with error message.");
-            }
-        }
-
-        // --- Handle Copy Caption ---
-        async function handleCopyCaption() {
-            const captionTextArea = document.getElementById('caption-text-area'); try { await navigator.clipboard.writeText(captionTextArea.value); alert("Caption copied!"); } catch (err) { console.error('Failed to copy:', err); alert("Failed to copy."); captionTextArea.select(); }
-        }
-        // --- Share Button Logic ---
-        async function handleShare() {
-            if (!simplePreviewImagePath && !currentVideoUrl) { alert("No image/video generated."); return; } if (!currentCuratedData) { alert("AI caption not ready."); return; }
-            // Infer title from caption for the share sheet title
-            const shareText = document.getElementById('caption-text-area').value;
-            const inferredTitle = shareText.split('\n')[0] || "Phase Loop Post"; // Use first line of caption
-            const shareTitle = (inferredTitle).replace(/^\*\*|\*\*$/g, '');
-
-            let shareData = { title: shareTitle, text: shareText, };
-            if (navigator.share) { try { if (simplePreviewImagePath && navigator.canShare) { const imageUrl = window.location.origin + simplePreviewImagePath; console.log(`Fetching image for sharing: ${imageUrl}`); const response = await fetch(imageUrl); if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`); const blob = await response.blob(); const fileName = `${shareTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`; const file = new File([blob], fileName, { type: 'image/png' }); if (navigator.canShare({ files: [file] })) { shareData.files = [file]; console.log("Sharing image file/text..."); } else { console.warn("Cannot share image file, sharing text/URL."); shareData.url = imageUrl; } } else if (currentVideoUrl) { console.log("Sharing text/video URL..."); shareData.url = currentVideoUrl; } else { console.log("Sharing text only..."); } await navigator.share(shareData); console.log('Successful share via Web Share API'); alert('Shared successfully!'); currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false; } catch (err) { console.error('Error during Web Share API:', err); if (err.name === 'AbortError') { console.log('Share cancelled.'); } else { alert(`Sharing failed: ${err.message}`); handleCopyCaption(); } } }
-            else { console.log("Web Share API not supported."); alert("Native sharing not supported. Caption copied."); handleCopyCaption(); }
-        }
-        // --- Download Button Logic ---
-        function handleDownload() {
-            let didDownload = false; if (currentVideoUrl) { alert("Opening video URL..."); window.open(currentVideoUrl, '_blank'); didDownload = true; } else if (simplePreviewImagePath) { if (!currentCuratedData || !currentCuratedData.caption) { alert("AI data needed for filename."); return; } const link = document.createElement('a'); link.href = simplePreviewImagePath;
-            // Infer filename from caption
-            const captionForFile = currentCuratedData.caption.split('\n')[0] || 'phaseloop-post';
-            const cleanedHeadlineText = (captionForFile).replace(/^\*\*|\*\*$/g, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            link.download = `${cleanedHeadlineText}.png`; document.body.appendChild(link); link.click(); document.body.removeChild(link); didDownload = true; } else { alert("No image/video available."); }
-            if (didDownload) { currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false; }
-        }
-
-    </script>
+    </script>
 </body>
 </html>
