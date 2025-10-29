@@ -84,7 +84,7 @@ const RSS_FEEDS = [
 
   // --- World Music ---
   { name: 'Afropop Worldwide', url: 'https://afropop.org/feed' },
-  { name:This 'World Music Report', url: 'https://worldmusicreport.com/feed/' },
+  { name: 'This World Music Report', url: 'https://worldmusicreport.com/feed/' },
   { name: 'World Music Network', url: 'https://worldmusic.net/blogs/news.atom' },
   { name: 'NPR Alt.Latino', url: 'https://www.npr.org/rss/rss.php?id=153580552' },
   { name: 'Remezcla Music', url: 'https://remezcla.com/music/feed/' },
