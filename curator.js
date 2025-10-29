@@ -298,17 +298,26 @@ async function generateSimplePreviewImage(imageUrl, socialCaption) {
         }
         overlayText = overlayText || " ";
 
-        // *** ADJUST FONT SIZE AND WRAPPING ***
-        const overlayFontSize = 20; // Reduced from 22
-        // Adjusted character estimate multiplier
-        const overlayCharsPerLine = Math.round(targetWidth / (overlayFontSize * 0.5)); 
-        const overlayLines = wrapText(overlayText, overlayCharsPerLine, 2); // Still max 2 lines
+        // --- Dynamic Font Size & Wrapping ---
+        // Base font size on image width (e.g., 2.8% of width)
+        // Clamp it between a min (16px) and max (36px)
+        let dynamicFontSize = Math.round(targetWidth * 0.028);
+        if (dynamicFontSize < 16) dynamicFontSize = 16;
+        if (dynamicFontSize > 36) dynamicFontSize = 36;
+        
+        const overlayFontSize = dynamicFontSize;
+        
+        // Make the character-per-line calculation more conservative.
+        // A multiplier of 0.65 assumes characters are wider than they are tall.
+        const overlayCharsPerLine = Math.round(targetWidth / (overlayFontSize * 0.65));
+        const overlayLines = wrapText(overlayText, overlayCharsPerLine, 2);
         const escapedOverlayText = overlayLines.map(line => escapeXml(line));
         console.log(`[Simple Preview] Text for overlay:`, escapedOverlayText);
 
         // --- Dynamic SVG Generation ---
         const lineSpacing = 1.3;
-        const padding = 10; // Reduced padding
+        // Make padding relative to the font size (e.g., 75% of the font size)
+        const padding = Math.round(overlayFontSize * 0.75);
         const textBlockHeight = overlayLines.length * overlayFontSize + (overlayLines.length > 1 ? (overlayLines.length - 1) * overlayFontSize * (lineSpacing - 1) : 0) ;
         const overlayHeight = Math.max(40, textBlockHeight + padding * 2); // Reduced min height
 
@@ -322,7 +331,7 @@ async function generateSimplePreviewImage(imageUrl, socialCaption) {
 
         const svgOverlay = `<svg width="${targetWidth}" height="${overlayHeight}">
             <rect x="0" y="0" width="${targetWidth}" height="${overlayHeight}" fill="#000000" opacity="0.7"/>
-            <text y="${textStartY}" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: ${overlayFontSize}px; font-weight: 900;" fill="#FFFFFF">
+            <text y="${textStartY}" style="font-family: Arial, 'Helvetica Neue', sans-serif; font-size: ${overlayFontSize}px; font-weight: 900;" fill="#FFFFFF">
                 ${textTspans}
             </text>
         </svg>`;
@@ -338,11 +347,12 @@ async function generateSimplePreviewImage(imageUrl, socialCaption) {
             .png().toBuffer();
         console.log("[Simple Preview] Image processing complete.");
 
-	// --- Save and Return ---
-	const filename = `preview_${Date.now()}.png`;
-	const imagePath = path.join(process.cwd(), 'public', filename);
-	await fs.writeFile(imagePath, finalImageBuffer); // This is the fix
-	console.log(`[Simple Preview] Success: Image saved to ${imagePath}`);        return `/${filename}`;
+        // --- Save and Return ---
+        const filename = `preview_${Date.now()}.png`;
+        const imagePath = path.join(process.cwd(), 'public', filename);
+        await fs.writeFile(imagePath, finalImageBuffer); // This is the fix
+        console.log(`[Simple Preview] Success: Image saved to ${imagePath}`);
+        return `/${filename}`;
 
     } catch (error) {
         console.error("--- generateSimplePreviewImage: CATCH BLOCK ENTERED ---");
