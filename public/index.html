@@ -28,6 +28,8 @@
              display: block; color: #666; font-size: 0.6em; text-align: center;
              margin-top: 1px;
         }
+        /* NEW: Loader Sentinel Styling */
+        #image-loader-sentinel { height: 50px; text-align: center; color: #888; }
 
 
         /* AI Text Preview Styling + Original Link */
@@ -45,12 +47,14 @@
         .related-article { background-color: #222; padding: 10px; border-radius: 4px; }
         .related-article a { color: #87CEFA; text-decoration: none; font-size: 0.9em; }
         .related-article p { font-size: 0.8em; color: #999; margin: 5px 0 0 0; }
+        /* MOVED: Video Display Styling */
         #video-display-area { margin-top: 20px; margin-bottom: 20px; }
         #video-display-area iframe,
         #video-display-area video { width: 100%; max-width: 560px; aspect-ratio: 16 / 9; display: block; margin: 0 auto; border: 1px solid #333; border-radius: 4px; }
+        
         button { padding: 10px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; margin-top: 5px; }
         button:hover { background-color: #0056b3; }
-        button#refresh-images-btn { background-color: #28a745; margin-left: 10px; }
+        /* REMOVED: Refresh Button Styling */
         button#download-preview-btn { background-color: #17a2b8; margin-right: 10px; }
         button.back-button { background-color: #6c757d; margin-left: 10px;}
         button#share-preview-btn { background-color: #007bff; margin-right: 10px;}
@@ -84,14 +88,12 @@
                  <h3>Original Article Image:</h3>
                  <img id="original-image" src="" alt="Original Article Image" />
              </div>
-             <h3>Relevant Web Images: <button id="refresh-images-btn" disabled>Refresh</button></h3>
+             <h3>Relevant Web Images:</h3>
              <div id="image-selection-area" class="image-selection-grid">
                  <p>Generating AI text to determine search query...</p>
              </div>
-             <div id="video-display-area" class="hidden">
-                <h3>Related Video:</h3>
-                <div id="video-player-container"></div>
-             </div>
+             <div id="image-loader-sentinel" style="height: 50px;"></div>
+             
              <h3>Other Sources:</h3>
              <div id="related-articles-list">
                  <p>Finding related articles...</p>
@@ -102,6 +104,11 @@
             <h2>Quick Preview</h2>
             <img id="simple-preview-image" src="" alt="Simple Preview" />
             <div id="simple-preview-video-player" style="display: none;"></div>
+
+            <div id="video-display-area" class="hidden">
+                <h3>Related Video:</h3>
+                <div id="video-player-container"></div>
+            </div>
 
             <div id="ai-caption-display">
                 <h3>AI Caption:</h3>
@@ -125,36 +132,55 @@
         const IMAGES_PER_PAGE = 9;
         let currentSearchKeywords = [];
         let currentKeywordIndex = 0;
-        let refreshClicksOnCurrentKeyword = 0;
         let currentImageStartIndex = 0;
         let currentImageContextUrl = null;
+        let isFetchingImages = false; // <-- NEW: Flag for infinite scroll
+        let imageObserver = null; // <-- NEW: Observer for infinite scroll
 
         // --- Event Listener for DOM Load ---
         document.addEventListener('DOMContentLoaded', () => {
             console.log("DOM fully loaded and parsed. Calling fetchNews()...");
             fetchNews();
+            initializeInfiniteScroll(); // <-- NEW: Setup observer
 
-            // --- Button Listeners ---
-            document.getElementById('refresh-images-btn').onclick = () => {
-                if (currentSearchKeywords.length === 0 || !currentCuratedData) {
-                    alert('Cannot refresh: search keywords not set or AI data missing.'); return;
-                }
-                refreshClicksOnCurrentKeyword++;
-                if (refreshClicksOnCurrentKeyword < 3) {
-                    currentImageStartIndex += IMAGES_PER_PAGE;
-                    const currentKeyword = currentSearchKeywords[currentKeywordIndex];
-                    console.log(`[Refresh] Loading next images for "${currentKeyword}", starting at index ${currentImageStartIndex}`);
-                    fetchImages(currentKeyword, currentImageStartIndex);
-                } else {
-                    console.log(`[Refresh] Reached 3 clicks, requesting alternative keywords...`);
-                    document.getElementById('refresh-images-btn').disabled = true;
-                    fetchAlternativeKeywords();
-                }
-            };
+            // --- Button Listeners (Refresh button removed) ---
             document.getElementById('download-preview-btn').onclick = () => handleDownload();
             document.getElementById('share-preview-btn').onclick = () => handleShare();
             document.getElementById('copy-caption-btn').onclick = () => handleCopyCaption();
         });
+
+        // --- NEW: Infinite Scroll Setup ---
+        function initializeInfiniteScroll() {
+            const sentinel = document.getElementById('image-loader-sentinel');
+            if (!sentinel) return;
+
+            const options = {
+                root: null, // viewport
+                rootMargin: '0px',
+                threshold: 0.1 // Trigger when 10% visible
+            };
+
+            imageObserver = new IntersectionObserver((entries) => {
+                const entry = entries[0];
+                if (entry.isIntersecting && !isFetchingImages) {
+                    console.log("[Observer] Sentinel visible, loading more images...");
+                    loadMoreImages();
+                }
+            }, options);
+
+            imageObserver.observe(sentinel);
+        }
+
+        // --- NEW: Logic for loading more images ---
+        function loadMoreImages() {
+            if (isFetchingImages || currentSearchKeywords.length === 0) return;
+            isFetchingImages = true;
+            
+            currentImageStartIndex += IMAGES_PER_PAGE;
+            const currentKeyword = currentSearchKeywords[currentKeywordIndex];
+            console.log(`[loadMoreImages] Loading next images for "${currentKeyword}", starting at index ${currentImageStartIndex}`);
+            fetchImages(currentKeyword, currentImageStartIndex);
+        }
 
         // --- UI View Handler ---
         function setView(viewId) {
@@ -215,17 +241,20 @@
         async function handleArticleTap(article) {
             console.log("handleArticleTap called for:", article.title);
             currentArticleData = article; currentCuratedData = null; currentVideoUrl = null; simplePreviewImagePath = null;
-            currentSearchKeywords = []; currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0; currentImageContextUrl = null;
-            document.getElementById('refresh-images-btn').disabled = true;
+            currentSearchKeywords = []; currentKeywordIndex = 0; currentImageStartIndex = 0; currentImageContextUrl = null;
+            isFetchingImages = false; // <-- UPDATED: Reset fetch flag
+            document.getElementById('image-loader-sentinel').innerHTML = ''; // <-- UPDATED: Clear loader
             setView('select');
             document.getElementById('preview-headline').innerText = "AI Caption Generated Below";
             document.getElementById('preview-description').innerText = "";
             document.getElementById('preview-caption-text').innerText = "Generating AI text...";
             document.getElementById('image-selection-area').innerHTML = "<p>Generating AI text to determine search query...</p>"; document.getElementById('related-articles-list').innerHTML = "<p>Finding related articles...</p>";
-            document.getElementById('video-display-area').classList.add('hidden'); document.getElementById('video-player-container').innerHTML = ''; document.getElementById('original-image-container').classList.add('hidden');
+            document.getElementById('video-player-container').innerHTML = ''; // <-- UPDATED: Clear video player
+            document.getElementById('video-display-area').classList.add('hidden'); // <-- UPDATED: Re-hide video area
+            document.getElementById('original-image-container').classList.add('hidden');
             const originalLinkEl = document.getElementById('original-article-link'); originalLinkEl.href = article.link; originalLinkEl.textContent = `View Original Article on ${article.source}`;
             fetchAiText(article);
-            fetchRelatedArticles(article.title, article.source); // This function is now defined
+            fetchRelatedArticles(article.title, article.source);
             fetchVideo(article.title, article.source, article.videoUrl);
             if (article.originalImageUrl) { const originalImgEl = document.getElementById('original-image'); const originalImgContainer = document.getElementById('original-image-container'); originalImgEl.src = article.originalImageUrl; originalImgEl.onclick = () => startSimplePreviewPipeline(article.originalImageUrl, article.link); originalImgContainer.classList.remove('hidden'); }
         }
@@ -276,35 +305,55 @@
                 const data = await response.json();
                 let primaryKeyword = data.keywords;
                 if (!primaryKeyword) { console.warn("[Keywords] Primary extraction failed, falling back."); primaryKeyword = currentArticleData.title; document.getElementById('image-selection-area').innerHTML = '<p>Keyword extraction failed, using title...</p>'; }
-                currentSearchKeywords = [primaryKeyword]; currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0;
+                currentSearchKeywords = [primaryKeyword]; currentKeywordIndex = 0; currentImageStartIndex = 0;
                 console.log(`[Keywords] Received primary: "${primaryKeyword}", starting image search.`);
-                fetchImages(primaryKeyword, 0);
-            } catch (error) { console.error("Error fetching primary keywords:", error); console.warn("[Keywords] Fetch failed, falling back."); currentSearchKeywords = [currentArticleData.title]; currentKeywordIndex = 0; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0; document.getElementById('image-selection-area').innerHTML = '<p>Keyword fetch failed, using title...</p>'; fetchImages(currentArticleData.title, 0); }
+                fetchImages(primaryKeyword, 0); // Start index is 0
+            } catch (error) { console.error("Error fetching primary keywords:", error); console.warn("[Keywords] Fetch failed, falling back."); currentSearchKeywords = [currentArticleData.title]; currentKeywordIndex = 0; currentImageStartIndex = 0; document.getElementById('image-selection-area').innerHTML = '<p>Keyword fetch failed, using title...</p>'; fetchImages(currentArticleData.title, 0); }
         }
 
         // --- Fetch Alternative Keywords ---
         async function fetchAlternativeKeywords() {
-            if (!currentCuratedData) { alert("Cannot get alternative keywords."); document.getElementById('refresh-images-btn').disabled = false; return; }
-            const area = document.getElementById('image-selection-area');
-            area.innerHTML += '<p>Searching for alternative keywords...</p>';
+            isFetchingImages = true; // Mark as fetching
+            const loader = document.getElementById('image-loader-sentinel');
+            if (!currentCuratedData) { alert("Cannot get alternative keywords."); isFetchingImages = false; return; }
+            loader.innerHTML = '<p>Searching for alternative keywords...</p>';
             try {
                 console.log("fetchAlternativeKeywords: Sending request to /api/get-alternative-keywords");
                 const response = await fetch('/api/get-alternative-keywords', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ headline: currentCuratedData.headline, description: currentCuratedData.description, previousKeywords: currentSearchKeywords }) });
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
-                if (data.keywords) { const newKeyword = data.keywords; console.log(`[AltKeywords] Received alternative: "${newKeyword}"`); currentSearchKeywords.push(newKeyword); currentKeywordIndex++; refreshClicksOnCurrentKeyword = 0; currentImageStartIndex = 0; fetchImages(newKeyword, 0); }
-                else { console.warn("[AltKeywords] No suitable alternative found."); alert("No more alternative keywords found."); area.innerHTML += '<p>No alternative keywords found.</p>'; document.getElementById('refresh-images-btn').disabled = true; }
-            } catch (error) { console.error("Error fetching alternative keywords:", error); alert("Failed to get alternative keywords."); area.innerHTML += '<p>Failed to get alternative keywords.</p>'; document.getElementById('refresh-images-btn').disabled = true; }
+                if (data.keywords) { 
+                    const newKeyword = data.keywords; 
+                    console.log(`[AltKeywords] Received alternative: "${newKeyword}"`); 
+                    currentSearchKeywords.push(newKeyword); 
+                    currentKeywordIndex++; 
+                    currentImageStartIndex = 0; // Reset index for new keyword
+                    fetchImages(newKeyword, 0); // fetchImages will reset isFetchingImages
+                }
+                else { 
+                    console.warn("[AltKeywords] No suitable alternative found."); 
+                    loader.innerHTML = '<p>No alternative keywords found. No more images to load.</p>';
+                    isFetchingImages = true; // Stop infinite scroll
+                }
+            } catch (error) { 
+                console.error("Error fetching alternative keywords:", error); 
+                loader.innerHTML = '<p>Failed to get alternative keywords.</p>';
+                isFetchingImages = true; // Stop infinite scroll
+            }
         }
 
-	    // --- Fetch Images ---
+	    // --- Fetch Images (UPDATED for Infinite Scroll) ---
         async function fetchImages(query, startIndex) {
-            const area = document.getElementById('image-selection-area'); const refreshBtn = document.getElementById('refresh-images-btn');
-            const isLoadingNewKeyword = startIndex === 0 && refreshClicksOnCurrentKeyword === 0 && currentKeywordIndex > 0;
-            if (startIndex === 0 && !isLoadingNewKeyword) area.innerHTML = `<p>Searching images: "${query}"...</p>`;
-            else if (isLoadingNewKeyword) area.innerHTML = `<p>Trying keyword: "${query}"...</p>`;
-            else { let loadingP = area.querySelector('p.loading-more'); if (!loadingP) { loadingP = document.createElement('p'); loadingP.className = 'loading-more'; area.appendChild(loadingP); } loadingP.textContent = 'Loading more images...'; }
-            refreshBtn.disabled = true;
+            isFetchingImages = true; // Mark as fetching
+            const area = document.getElementById('image-selection-area');
+            const loader = document.getElementById('image-loader-sentinel');
+
+            if (startIndex === 0) {
+                area.innerHTML = `<p>Searching images: "${query}"...</p>`;
+            } else {
+                loader.innerHTML = '<p>Loading more images...</p>';
+            }
+
             try {
                 console.log(`fetchImages: Sending request for "${query}", start index ${startIndex}`);
                 const response = await fetch('/api/search-images', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query, startIndex: startIndex }) });
@@ -312,10 +361,18 @@
                 const data = await response.json();
                 const imagesData = data.images || [];
                 console.log(`fetchImages: Received ${imagesData.length} images.`);
-                if (startIndex === 0) { area.innerHTML = ''; } else { const loadingP = area.querySelector('p.loading-more'); if (loadingP) area.removeChild(loadingP); }
-                if (imagesData.length === 0) { if (startIndex === 0) { area.innerHTML = `<p>No images found for "${query}".</p>`; } else { area.innerHTML += `<p>No more images found.</p>`; } refreshBtn.disabled = (startIndex === 0 || imagesData.length < IMAGES_PER_PAGE); }
+                
+                if (startIndex === 0) area.innerHTML = ''; // Clear "Searching..." text
+                loader.innerHTML = ''; // Clear loader text
+
+                if (imagesData.length === 0) {
+                    if (startIndex === 0) {
+                        area.innerHTML = `<p>No images found for "${query}".</p>`;
+                    }
+                    loader.innerHTML = '<p>No more images for this keyword. Fetching alternatives...</p>';
+                    fetchAlternativeKeywords(); // Automatically get new keywords
+                }
                 else {
-                    refreshBtn.disabled = (imagesData.length < IMAGES_PER_PAGE);
                     imagesData.forEach((imgData, index) => {
                          const container = document.createElement('div'); container.className = 'image-container';
                          const img = document.createElement('img'); img.src = imgData.imageUrl; img.alt = `Relevant Image ${startIndex + index + 1}`; img.onerror = function() { this.alt = 'Image failed'; this.style.border = '1px solid red'; };
@@ -328,11 +385,17 @@
                          area.appendChild(container);
                      });
                     console.log("fetchImages: Finished rendering images.");
+                    isFetchingImages = false; // Allow next fetch
                  }
-            } catch (error) { console.error('Error fetching images:', error); if (startIndex === 0) { area.innerHTML = `<p>Image search failed for "${query}".</p>`; } else { area.innerHTML += `<p>Failed to load more images.</p>`; } refreshBtn.disabled = true; }
+            } catch (error) { 
+                console.error('Error fetching images:', error); 
+                if (startIndex === 0) area.innerHTML = `<p>Image search failed for "${query}".</p>`;
+                loader.innerHTML = '<p>Image search failed.</p>';
+                isFetchingImages = false; // Allow retry on scroll
+            }
         }
 
-        // --- *** RESTORED: Fetch Related Articles *** ---
+        // --- Fetch Related Articles ---
         async function fetchRelatedArticles(title, source) {
             const list = document.getElementById('related-articles-list');
             if (!list) { console.error("fetchRelatedArticles Error: List element not found!"); return; }
@@ -377,7 +440,6 @@
                 list.innerHTML = "<p style='color: red;'>Related article search failed.</p>";
             }
         }
-        // --- *** END RESTORED *** ---
 
         // --- Fetch Video ---
         async function fetchVideo(title, source, rssVideoUrl) {
@@ -398,10 +460,11 @@
 
             if (videoUrlToDisplay) {
                 currentVideoUrl = videoUrlToDisplay;
+                // This now populates the player inside the hidden simple-preview-view
                 displayVideo(videoUrlToDisplay, 'video-player-container');
             } else {
                 console.log("[Video] No video found from RSS or search.");
-                document.getElementById('video-display-area').classList.add('hidden');
+                // No need to hide, it's already hidden by default
             }
         }
 
@@ -431,7 +494,11 @@
                   container.innerHTML = `<p>Video found: <a href="${videoUrl}" target="_blank" rel="noopener noreferrer">${videoUrl}</a> (Cannot embed player)</p>`;
               }
             if (videoElement) { container.appendChild(videoElement); }
-            if (containerId === 'video-player-container') { document.getElementById('video-display-area').classList.remove('hidden'); }
+            
+            // This now un-hides the video area *within* the simple-preview-view
+            if (containerId === 'video-player-container') {
+                document.getElementById('video-display-area').classList.remove('hidden');
+            }
         }
 
         // --- Call Simple Preview API ---
@@ -442,19 +509,16 @@
              currentVideoUrl = isVideo ? mediaUrl : null; simplePreviewImagePath = null; currentImageContextUrl = isImageUrl ? contextUrl : null;
              try {
                   if (isImageUrl) {
-                      if (!currentCuratedData || !currentCuratedData.caption) { // <-- UPDATED Check
+                      if (!currentCuratedData || !currentCuratedData.caption) {
                            alert("AI caption data is not ready. Cannot generate preview.");
                            return;
                        }
                       alert("Generating preview image...");
                       console.log("startSimplePreviewPipeline: Proceeding with image generation.");
                       
-                      // --- THIS IS THE FIX ---
                       const socialCaption = currentCuratedData.caption;
-                      // Get the first line, which is the social headline
                       const socialHeadline = socialCaption.split('\n\n')[0].trim(); 
                       console.log(`startSimplePreviewPipeline: Extracted social headline: "${socialHeadline}"`);
-                      // --- END OF FIX ---
                       
                       console.log("startSimplePreviewPipeline: Sending request to /api/generate-simple-preview");
                       const response = await fetch('/api/generate-simple-preview', { 
@@ -462,7 +526,7 @@
                           headers: { 'Content-Type': 'application/json' }, 
                           body: JSON.stringify({ 
                               imageUrl: mediaUrl, 
-                              overlayText: socialHeadline // <-- UPDATED: Send the correct text
+                              overlayText: socialHeadline
                             }) 
                         });
                       console.log(`startSimplePreviewPipeline: Received response. Status: ${response.status}`);
@@ -490,7 +554,6 @@
                       if (simplePreviewImagePath) {
                            document.getElementById('simple-preview-image').src = simplePreviewImagePath + '?' + Date.now();
                       }
-                      currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false;
                   }
                   else { console.warn("startSimplePreviewPipeline: No image/video path set."); alert('Preview generation failed.'); }
              } catch (error) { console.error('!!! CATCH ERROR in simple preview pipeline:', error); alert(`Failed to create preview: ${error.message}.`); simplePreviewImagePath = null; currentVideoUrl = null; }
@@ -530,13 +593,12 @@
         // --- Share Button Logic ---
         async function handleShare() {
             if (!simplePreviewImagePath && !currentVideoUrl) { alert("No image/video generated."); return; } if (!currentCuratedData) { alert("AI caption not ready."); return; } const shareTitle = (currentCuratedData.headline || "Phase Loop Post").replace(/^\*\*|\*\*$/g, ''); const shareText = document.getElementById('caption-text-area').value; let shareData = { title: shareTitle, text: shareText, };
-            if (navigator.share) { try { if (simplePreviewImagePath && navigator.canShare) { const imageUrl = window.location.origin + simplePreviewImagePath; console.log(`Fetching image for sharing: ${imageUrl}`); const response = await fetch(imageUrl); if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`); const blob = await response.blob(); const fileName = `${shareTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`; const file = new File([blob], fileName, { type: 'image/png' }); if (navigator.canShare({ files: [file] })) { shareData.files = [file]; console.log("Sharing image file/text..."); } else { console.warn("Cannot share image file, sharing text/URL."); shareData.url = imageUrl; } } else if (currentVideoUrl) { console.log("Sharing text/video URL..."); shareData.url = currentVideoUrl; } else { console.log("Sharing text only..."); } await navigator.share(shareData); console.log('Successful share via Web Share API'); alert('Shared successfully!'); currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false; } catch (err) { console.error('Error during Web Share API:', err); if (err.name === 'AbortError') { console.log('Share cancelled.'); } else { alert(`Sharing failed: ${err.message}`); handleCopyCaption(); } } }
+            if (navigator.share) { try { if (simplePreviewImagePath && navigator.canShare) { const imageUrl = window.location.origin + simplePreviewImagePath; console.log(`Fetching image for sharing: ${imageUrl}`); const response = await fetch(imageUrl); if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`); const blob = await response.blob(); const fileName = `${shareTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`; const file = new File([blob], fileName, { type: 'image/png' }); if (navigator.canShare({ files: [file] })) { shareData.files = [file]; console.log("Sharing image file/text..."); } else { console.warn("Cannot share image file, sharing text/URL."); shareData.url = imageUrl; } } else if (currentVideoUrl) { console.log("Sharing text/video URL..."); shareData.url = currentVideoUrl; } else { console.log("Sharing text only..."); } await navigator.share(shareData); console.log('Successful share via Web Share API'); alert('Shared successfully!'); } catch (err) { console.error('Error during Web Share API:', err); if (err.name === 'AbortError') { console.log('Share cancelled.'); } else { alert(`Sharing failed: ${err.message}`); handleCopyCaption(); } } }
             else { console.log("Web Share API not supported."); alert("Native sharing not supported. Caption copied."); handleCopyCaption(); }
         }
         // --- Download Button Logic ---
         function handleDownload() {
             let didDownload = false; if (currentVideoUrl) { alert("Opening video URL..."); window.open(currentVideoUrl, '_blank'); didDownload = true; } else if (simplePreviewImagePath) { if (!currentCuratedData) { alert("AI data needed for filename."); return; } const link = document.createElement('a'); link.href = simplePreviewImagePath; const cleanedHeadlineText = (currentCuratedData?.headline || 'phaseloop-post').replace(/^\*\*|\*\*$/g, '').replace(/[^a-z0-9]/gi, '_').toLowerCase(); link.download = `${cleanedHeadlineText}.png`; document.body.appendChild(link); link.click(); document.body.removeChild(link); didDownload = true; } else { alert("No image/video available."); }
-            if (didDownload) { currentImageStartIndex = 0; refreshClicksOnCurrentKeyword = 0; document.getElementById('refresh-images-btn').disabled = false; }
         }
 
     </script>

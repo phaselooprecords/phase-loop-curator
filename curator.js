@@ -1,4 +1,4 @@
-// curator.js (UPDATED: Smaller font sizes in overlay)
+// curator.js (UPDATED: Fixed keyword extraction bug)
 
 require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
@@ -134,10 +134,18 @@ async function generateAiText(article) {
 async function extractSearchKeywords(headline, description) {
     console.log(`[AI Keywords] Extracting keywords from: "${headline}" / "${description}"`);
     const inputText = `Headline: ${headline}\nDescription: ${description}`;
+    
+    // --- THIS IS THE FIX ---
+    // The inputText was missing from the prompt, causing the AI to ask for it.
     const prompt = `
-        Analyze the following text about a music news item. Identify the main subject(s) (artist, event, topic).
-        Based ONLY on the main subject(s), provide the BEST concise keyword phrase (max 4 words) suitable for a Google Image Search...
+        Analyze the following text about a music news item:
+        ---
+        ${inputText}
+        ---
+        Identify the main subject(s) (artist, event, topic) from the text above.
+        Based ONLY on the main subject(s), provide the BEST concise keyword phrase (max 4 words) suitable for a Google Image Search.
         OUTPUT ONLY the keyword phrase.`;
+    // --- END OF FIX ---
 
     try {
         const generationResult = await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }] });
@@ -155,7 +163,7 @@ async function extractSearchKeywords(headline, description) {
               throw new Error("Error processing Gemini keyword response structure.");
          }
         console.log(`[AI Keywords] Extracted Keywords: "${keywords}"`);
-        if (!keywords || keywords.toLowerCase().includes('cannot fulfill')) {
+        if (!keywords || keywords.toLowerCase().includes('cannot fulfill') || keywords.toLowerCase().includes('please provide')) {
             console.warn('[AI Keywords] Extraction failed or returned invalid keywords.');
             return null;
         }
@@ -248,16 +256,16 @@ async function findRelatedVideo(title, source) {
 }
 
 
-// --- *** UPDATED UTILITY FUNCTION: GENERATE PREVIEW IMAGE *** ---
-async function generateSimplePreviewImage(imageUrl, overlayTextString) { // <-- UPDATED Signature
+// --- *** UTILITY FUNCTION: GENERATE PREVIEW IMAGE *** ---
+async function generateSimplePreviewImage(imageUrl, overlayTextString) {
     console.log(`[Simple Preview] Starting preview generation.`);
     console.log(`[Simple Preview] Image URL: ${imageUrl}`);
-    console.log(`[Simple Preview] Raw Overlay Text:`, overlayTextString ? overlayTextString : 'N/A'); // <-- UPDATED Log
+    console.log(`[Simple Preview] Raw Overlay Text:`, overlayTextString ? overlayTextString : 'N/A');
 
     try {
         if (!imageUrl || typeof imageUrl !== 'string') { throw new Error('Invalid imageUrl'); }
         // Use the provided text directly. Remove markdown bolding.
-        const cleanOverlayText = typeof overlayTextString === 'string' ? overlayTextString.replace(/^\*\*|\*\*$/g, '').trim() : ''; // <-- UPDATED
+        const cleanOverlayText = typeof overlayTextString === 'string' ? overlayTextString.replace(/^\*\*|\*\*$/g, '').trim() : '';
 
         console.log(`[Simple Preview] Fetching image: ${imageUrl}`);
         const response = await fetch(imageUrl);
@@ -286,20 +294,14 @@ async function generateSimplePreviewImage(imageUrl, overlayTextString) { // <-- 
         console.log(`[Simple Preview] Final Image Dimensions: ${targetWidth}x${targetHeight}`);
 
         // --- Text Preparation (Use provided text) ---
-        // This block is now much simpler.
-        let overlayText = cleanOverlayText || " "; // <-- UPDATED
+        let overlayText = cleanOverlayText || " ";
 
         // --- Dynamic Font Size & Wrapping ---
-        // Base font size on image width (e.g., 2.8% of width)
-        // Clamp it between a min (16px) and max (36px)
         let dynamicFontSize = Math.round(targetWidth * 0.028);
         if (dynamicFontSize < 16) dynamicFontSize = 16;
         if (dynamicFontSize > 36) dynamicFontSize = 36;
         
         const overlayFontSize = dynamicFontSize;
-        
-        // Make the character-per-line calculation more conservative.
-        // A multiplier of 0.65 assumes characters are wider than they are tall.
         const overlayCharsPerLine = Math.round(targetWidth / (overlayFontSize * 0.65));
         const overlayLines = wrapText(overlayText, overlayCharsPerLine, 2);
         const escapedOverlayText = overlayLines.map(line => escapeXml(line));
@@ -307,10 +309,9 @@ async function generateSimplePreviewImage(imageUrl, overlayTextString) { // <-- 
 
         // --- Dynamic SVG Generation ---
         const lineSpacing = 1.3;
-        // Make padding relative to the font size (e.g., 75% of the font size)
         const padding = Math.round(overlayFontSize * 0.75);
         const textBlockHeight = overlayLines.length * overlayFontSize + (overlayLines.length > 1 ? (overlayLines.length - 1) * overlayFontSize * (lineSpacing - 1) : 0) ;
-        const overlayHeight = Math.max(40, textBlockHeight + padding * 2); // Reduced min height
+        const overlayHeight = Math.max(40, textBlockHeight + padding * 2);
 
         let textTspans = '';
         escapedOverlayText.forEach((line, index) => {
@@ -341,7 +342,7 @@ async function generateSimplePreviewImage(imageUrl, overlayTextString) { // <-- 
         // --- Save and Return ---
         const filename = `preview_${Date.now()}.png`;
         const imagePath = path.join(process.cwd(), 'public', filename);
-        await fs.writeFile(imagePath, finalImageBuffer); // This is the fix
+        await fs.writeFile(imagePath, finalImageBuffer);
         console.log(`[Simple Preview] Success: Image saved to ${imagePath}`);
         return `/${filename}`;
 
