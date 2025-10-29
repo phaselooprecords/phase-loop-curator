@@ -338,12 +338,11 @@ async function generateSimplePreviewImage(imageUrl, socialCaption) {
             .png().toBuffer();
         console.log("[Simple Preview] Image processing complete.");
 
-        // --- Save and Return ---
-        const filename = `preview_${Date.now()}.png`;
-        const imagePath = path.join(process.cwd(), 'public', filename);
-        await fs.writeFile(finalImageBuffer, finalImageBuffer); // Fixed the typo here
-        console.log(`[Simple Preview] Success: Image saved to ${imagePath}`);
-        return `/${filename}`;
+	// --- Save and Return ---
+	const filename = `preview_${Date.now()}.png`;
+	const imagePath = path.join(process.cwd(), 'public', filename);
+	await fs.writeFile(imagePath, finalImageBuffer); // This is the fix
+	console.log(`[Simple Preview] Success: Image saved to ${imagePath}`);        return `/${filename}`;
 
     } catch (error) {
         console.error("--- generateSimplePreviewImage: CATCH BLOCK ENTERED ---");
