@@ -442,14 +442,19 @@
              currentVideoUrl = isVideo ? mediaUrl : null; simplePreviewImagePath = null; currentImageContextUrl = isImageUrl ? contextUrl : null;
              try {
                   if (isImageUrl) {
-                      if (!currentCuratedData || !currentCuratedData.caption || !currentCuratedData.headline) { // <-- UPDATED Check
+                      if (!currentCuratedData || !currentCuratedData.caption) { // <-- UPDATED Check
                            alert("AI caption data is not ready. Cannot generate preview.");
                            return;
                        }
                       alert("Generating preview image...");
                       console.log("startSimplePreviewPipeline: Proceeding with image generation.");
                       
-                      const headlineText = currentCuratedData.headline; // <-- UPDATED: Get the headline
+                      // --- THIS IS THE FIX ---
+                      const socialCaption = currentCuratedData.caption;
+                      // Get the first line, which is the social headline
+                      const socialHeadline = socialCaption.split('\n\n')[0].trim(); 
+                      console.log(`startSimplePreviewPipeline: Extracted social headline: "${socialHeadline}"`);
+                      // --- END OF FIX ---
                       
                       console.log("startSimplePreviewPipeline: Sending request to /api/generate-simple-preview");
                       const response = await fetch('/api/generate-simple-preview', { 
@@ -457,7 +462,7 @@
                           headers: { 'Content-Type': 'application/json' }, 
                           body: JSON.stringify({ 
                               imageUrl: mediaUrl, 
-                              overlayText: headlineText // <-- UPDATED: Send the headline text
+                              overlayText: socialHeadline // <-- UPDATED: Send the correct text
                             }) 
                         });
                       console.log(`startSimplePreviewPipeline: Received response. Status: ${response.status}`);
