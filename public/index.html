@@ -442,15 +442,24 @@
              currentVideoUrl = isVideo ? mediaUrl : null; simplePreviewImagePath = null; currentImageContextUrl = isImageUrl ? contextUrl : null;
              try {
                   if (isImageUrl) {
-                      if (!currentCuratedData || !currentCuratedData.caption) {
+                      if (!currentCuratedData || !currentCuratedData.caption || !currentCuratedData.headline) { // <-- UPDATED Check
                            alert("AI caption data is not ready. Cannot generate preview.");
                            return;
                        }
                       alert("Generating preview image...");
                       console.log("startSimplePreviewPipeline: Proceeding with image generation.");
-                      const socialCaption = currentCuratedData.caption; // Use the full social caption
+                      
+                      const headlineText = currentCuratedData.headline; // <-- UPDATED: Get the headline
+                      
                       console.log("startSimplePreviewPipeline: Sending request to /api/generate-simple-preview");
-                      const response = await fetch('/api/generate-simple-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: mediaUrl, socialCaption: socialCaption }) });
+                      const response = await fetch('/api/generate-simple-preview', { 
+                          method: 'POST', 
+                          headers: { 'Content-Type': 'application/json' }, 
+                          body: JSON.stringify({ 
+                              imageUrl: mediaUrl, 
+                              overlayText: headlineText // <-- UPDATED: Send the headline text
+                            }) 
+                        });
                       console.log(`startSimplePreviewPipeline: Received response. Status: ${response.status}`);
                       if (!response.ok) { const errorText = await response.text(); console.error(`startSimplePreviewPipeline: Error response: ${response.status}`, errorText); throw new Error(`Server error: ${response.status}`); }
                       console.log("startSimplePreviewPipeline: Trying response.json()...");

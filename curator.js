@@ -249,14 +249,15 @@ async function findRelatedVideo(title, source) {
 
 
 // --- *** UPDATED UTILITY FUNCTION: GENERATE PREVIEW IMAGE *** ---
-async function generateSimplePreviewImage(imageUrl, socialCaption) {
+async function generateSimplePreviewImage(imageUrl, overlayTextString) { // <-- UPDATED Signature
     console.log(`[Simple Preview] Starting preview generation.`);
     console.log(`[Simple Preview] Image URL: ${imageUrl}`);
-    console.log(`[Simple Preview] Raw Social Caption:`, socialCaption ? socialCaption.substring(0, 50) + '...' : 'N/A');
+    console.log(`[Simple Preview] Raw Overlay Text:`, overlayTextString ? overlayTextString : 'N/A'); // <-- UPDATED Log
 
     try {
         if (!imageUrl || typeof imageUrl !== 'string') { throw new Error('Invalid imageUrl'); }
-        const captionText = typeof socialCaption === 'string' ? socialCaption : '';
+        // Use the provided text directly. Remove markdown bolding.
+        const cleanOverlayText = typeof overlayTextString === 'string' ? overlayTextString.replace(/^\*\*|\*\*$/g, '').trim() : ''; // <-- UPDATED
 
         console.log(`[Simple Preview] Fetching image: ${imageUrl}`);
         const response = await fetch(imageUrl);
@@ -284,19 +285,9 @@ async function generateSimplePreviewImage(imageUrl, socialCaption) {
         }
         console.log(`[Simple Preview] Final Image Dimensions: ${targetWidth}x${targetHeight}`);
 
-        // --- Text Preparation (Extract first sentence of main paragraph) ---
-        let overlayText = '';
-        if (captionText) {
-            const parts = captionText.split('\n\n');
-            if (parts.length > 1) {
-                const mainParagraph = parts[1];
-                const sentenceMatch = mainParagraph.match(/^[^.!?]+[.!?]/);
-                overlayText = sentenceMatch ? sentenceMatch[0].trim() : mainParagraph.split(' ').slice(0, 10).join(' ') + '...';
-            } else {
-                 overlayText = captionText.split(' ').slice(0, 15).join(' ') + '...';
-            }
-        }
-        overlayText = overlayText || " ";
+        // --- Text Preparation (Use provided text) ---
+        // This block is now much simpler.
+        let overlayText = cleanOverlayText || " "; // <-- UPDATED
 
         // --- Dynamic Font Size & Wrapping ---
         // Base font size on image width (e.g., 2.8% of width)

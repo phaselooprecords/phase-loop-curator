@@ -141,24 +141,22 @@ app.post('/api/find-video', async (req, res) => {
 app.post('/api/generate-simple-preview', async (req, res) => {
     // --- Log Entry and Inputs ---
     console.log("--- /api/generate-simple-preview: Endpoint START ---");
-    // Updated to expect socialCaption based on latest curator.js change
-    const { imageUrl, socialCaption } = req.body;
+    const { imageUrl, overlayText } = req.body; // <-- UPDATED
     console.log(`[/api/generate-simple-preview] INPUT imageUrl: ${imageUrl}`);
-    // Log start of caption, handle potential undefined/null
-    console.log(`[/api/generate-simple-preview] INPUT socialCaption: ${socialCaption ? socialCaption.substring(0, 80) + '...' : 'N/A'}`);
+    console.log(`[/api/generate-simple-preview] INPUT overlayText: ${overlayText}`); // <-- UPDATED
     // --- End Log ---
 
-    // Updated validation to check for socialCaption
-    if (!imageUrl || !socialCaption) {
-        console.log("[/api/generate-simple-preview] Validation Failed: Missing imageUrl or socialCaption."); // Log validation fail
+    // Updated validation
+    if (!imageUrl || !overlayText) {
+        console.log("[/api/generate-simple-preview] Validation Failed: Missing imageUrl or overlayText."); // <-- UPDATED
         // Send a specific error response including the fallback path
-        return res.status(400).json({ error: 'Missing data for preview (imageUrl or socialCaption).', previewImagePath: '/fallback.png' });
+        return res.status(400).json({ error: 'Missing data for preview (imageUrl or overlayText).', previewImagePath: '/fallback.png' }); // <-- UPDATED
     }
 
     try {
         console.log("[/api/generate-simple-preview] Calling curator.generateSimplePreviewImage..."); // Log before call
-        // Pass socialCaption to the curator function
-        const previewImagePath = await curator.generateSimplePreviewImage(imageUrl, socialCaption);
+        // Pass overlayText to the curator function
+        const previewImagePath = await curator.generateSimplePreviewImage(imageUrl, overlayText); // <-- UPDATED
         console.log(`[/api/generate-simple-preview] curator function returned: ${previewImagePath}`); // Log return value
 
         // --- Explicitly handle fallback path ---
