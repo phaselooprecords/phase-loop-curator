@@ -1,4 +1,4 @@
-// server.js (Ensuring app = express() is present)
+// server.js (UPDATED AND FIXED)
 
 // 1. Import modules
 const express = require('express');
@@ -8,14 +8,12 @@ const bodyParser = require('body-parser');
 const aggregator = require('./aggregator');
 const db = require('./database');
 const curator = require('./curator');
-const cluster = require('cluster');
-const os =require('os');
-const numCPUs = os.cpus().length;
+// const cluster = require('cluster'); // <-- REMOVED
+// const os = require('os'); // <-- REMOVED
 
 // 2. Initialize the app and set the port
-const app = express(); // <<<--- THIS LINE MUST BE PRESENT AND UNCOMMENTED
+const app = express();
 const PORT = process.env.PORT || 3000;
-
 
 // --- MIDDLEWARE SETUP ---
 app.use(bodyParser.json());
@@ -23,13 +21,8 @@ app.use(express.static('public')); // This should serve index.html
 
 // --- API ROUTES (Endpoints) ---
 
-// Root route (No longer needed if express.static serves index.html)
-// app.get('/', (req, res) => {
-//     res.sendFile(path.join(__dirname, 'public', 'index.html'));
-// });
-
 // Fetch all stored news articles
-app.get('/api/news', async (req, res) => { // <<<--- Error was happening here
+app.get('/api/news', async (req, res) => {
     console.log("--> Received request for /api/news");
     try {
         const articles = await db.getAllArticles();
@@ -88,7 +81,6 @@ app.post('/api/get-alternative-keywords', async (req, res) => {
     }
 });
 
-
 // Endpoint 4: Search for Images
 app.post('/api/search-images', async (req, res) => {
     const { query, startIndex } = req.body;
@@ -136,53 +128,40 @@ app.post('/api/find-video', async (req, res) => {
     }
 });
 
-
-// Simple Preview Image Generation (with detailed logging and error handling)
+// Simple Preview Image Generation
 app.post('/api/generate-simple-preview', async (req, res) => {
-    // --- Log Entry and Inputs ---
     console.log("--- /api/generate-simple-preview: Endpoint START ---");
-    const { imageUrl, overlayText } = req.body; // <-- UPDATED
+    const { imageUrl, overlayText } = req.body;
     console.log(`[/api/generate-simple-preview] INPUT imageUrl: ${imageUrl}`);
-    console.log(`[/api/generate-simple-preview] INPUT overlayText: ${overlayText}`); // <-- UPDATED
-    // --- End Log ---
+    console.log(`[/api/generate-simple-preview] INPUT overlayText: ${overlayText}`);
 
-    // Updated validation
     if (!imageUrl || !overlayText) {
-        console.log("[/api/generate-simple-preview] Validation Failed: Missing imageUrl or overlayText."); // <-- UPDATED
-        // Send a specific error response including the fallback path
-        return res.status(400).json({ error: 'Missing data for preview (imageUrl or overlayText).', previewImagePath: '/fallback.png' }); // <-- UPDATED
+        console.log("[/api/generate-simple-preview] Validation Failed: Missing imageUrl or overlayText.");
+        return res.status(400).json({ error: 'Missing data for preview (imageUrl or overlayText).', previewImagePath: '/fallback.png' });
     }
 
     try {
-        console.log("[/api/generate-simple-preview] Calling curator.generateSimplePreviewImage..."); // Log before call
-        // Pass overlayText to the curator function
-        const previewImagePath = await curator.generateSimplePreviewImage(imageUrl, overlayText); // <-- UPDATED
-        console.log(`[/api/generate-simple-preview] curator function returned: ${previewImagePath}`); // Log return value
+        console.log("[/api/generate-simple-preview] Calling curator.generateSimplePreviewImage...");
+        const previewImagePath = await curator.generateSimplePreviewImage(imageUrl, overlayText);
+        console.log(`[/api/generate-simple-preview] curator function returned: ${previewImagePath}`);
 
-        // --- Explicitly handle fallback path ---
         if (previewImagePath === '/fallback.png') {
             console.log("[/api/generate-simple-preview] Curator returned fallback path. Sending error indicator response.");
-            // Send back the fallback path with a 200 status, frontend interprets this as an error
              res.status(200).json({ previewImagePath: '/fallback.png', error: 'Preview generation failed on server.' });
         } else if (previewImagePath && typeof previewImagePath === 'string' && previewImagePath.startsWith('/preview_')) {
              console.log("[/api/generate-simple-preview] Curator returned valid path. Sending success response.");
-             res.status(200).json({ previewImagePath: previewImagePath }); // Send successful path
+             res.status(200).json({ previewImagePath: previewImagePath });
         } else {
-             // Handle unexpected return values (null, undefined, etc.)
              console.error("[/api/generate-simple-preview] Curator returned unexpected value:", previewImagePath);
-             throw new Error('Unexpected return value from image generator.'); // Trigger catch block
+             throw new Error('Unexpected return value from image generator.');
         }
-        // --- End Handling ---
-        console.log("--- /api/generate-simple-preview: Endpoint END (Success Path) ---"); // Log end success
+        console.log("--- /api/generate-simple-preview: Endpoint END (Success Path) ---");
 
     } catch (error) {
-        // --- Log Error Explicitly ---
-        console.error("--- /api/generate-simple-preview: CATCH BLOCK ERROR ---"); // Log Catch Entry
-        console.error("[/api/generate-simple-preview ERROR RAW]", error); // Log raw error
-        console.error(`[/api/generate-simple-preview ERROR Message]: ${error.message}`); // Log message
-        console.log("--- /api/generate-simple-preview: Endpoint END (Error Path) ---"); // Log Error End
-        // --- End Log ---
-        // Send a 500 status and the fallback path in case of unexpected errors
+        console.error("--- /api/generate-simple-preview: CATCH BLOCK ERROR ---");
+        console.error("[/api/generate-simple-preview ERROR RAW]", error);
+        console.error(`[/api/generate-simple-preview ERROR Message]: ${error.message}`);
+        console.log("--- /api/generate-simple-preview: Endpoint END (Error Path) ---");
         res.status(500).json({ error: 'Internal server error during preview generation.', previewImagePath: '/fallback.png' });
     }
 });
@@ -204,31 +183,27 @@ app.post('/api/share', async (req, res) => {
 });
 
 
-// --- SERVER START FUNCTION ---
+// --- SERVER START FUNCTION (REFACTORED) ---
 async function startApp() {
-    try {
-        await db.connectDB();
-        app.listen(PORT,'0.0.0.0', () => {
-            console.log(`Server running at http://localhost:${PORT}`);
-            aggregator.startScheduler();
-        });
-    } catch (dbError) {
-        console.error("Failed to start server due to DB connection error:", dbError);
-        process.exit(1);
-    }
+    // 1. Start listening for HTTP requests *immediately*
+    // This responds to Railway's health checks.
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running at http://localhost:${PORT} and listening for connections.`);
+        
+        // 2. Now, connect to the database and start the scheduler in the background.
+        // This is wrapped in an IIFE (Immediately Invoked Function Expression)
+        (async () => {
+            try {
+                await db.connectDB();
+                aggregator.startScheduler();
+            } catch (dbError) {
+                console.error("!!! CRITICAL: Server is LIVE but DB connection FAILED:", dbError);
+                // The server is running, but API calls will fail.
+                // This is better than the whole app failing to start.
+            }
+        })();
+    });
 }
 
 // --- INITIATE SERVER START ---
-
-if (cluster.isPrimary) {
-  console.log(`Primary ${process.pid} is running`);
-  for (let i = 0; i < numCPUs; i++) {
-    cluster.fork();
-  }
-  cluster.on('exit', (worker, code, signal) => {
-    console.log(`worker ${worker.process.pid} died`);
-  });
-
-} else {
-  startApp();
-}
+startApp(); // Just call the function directly. No more cluster logic.
