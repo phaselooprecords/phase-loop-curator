@@ -1,21 +1,21 @@
-// curator.js (UPDATED: Fixed keyword extraction bug)
+// curator.js (UPDATED: Image generation streams buffer, no filesystem)
 
 require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
 const { google } = require('googleapis');
-const path = require('path');
+// const path = require('path'); // <-- REMOVED
 const sharp = require('sharp');
-const fs = require('fs/promises');
+// const fs = require('fs/promises'); // <-- REMOVED
 const fetch = require('node-fetch');
 
 // --- API CLIENTS SETUP ---
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const model = 'gemini-2.5-flash';
 const customsearch = google.customsearch('v1');
-const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
+const GOOGLE_API_KEY = process.env.GEMINI_API_KEY; // Using one key for both
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
-// --- HELPER FUNCTION: Escape XML/HTML characters ---
+// ... (keep escapeXml and wrapText helper functions exactly as they are) ...
 function escapeXml(unsafe) {
     if (typeof unsafe !== 'string') {
         console.warn('[escapeXml] Input was not a string:', unsafe);
@@ -32,14 +32,11 @@ function escapeXml(unsafe) {
         }
     });
 }
-
-// --- HELPER FUNCTION: Wrap text for SVG ---
 function wrapText(text, maxCharsPerLine, maxLines = 2) {
     if (!text) return [''];
     const words = text.split(' ');
     const lines = [];
     let currentLine = '';
-
     words.forEach(word => {
         if (lines.length >= maxLines) return;
         const testLine = currentLine ? currentLine + ' ' + word : word;
@@ -51,15 +48,12 @@ function wrapText(text, maxCharsPerLine, maxLines = 2) {
             currentLine = testLine;
         }
     });
-
     if (currentLine.trim().length > 0 && lines.length < maxLines) {
         lines.push(currentLine.trim());
     }
     return lines.slice(0, maxLines);
 }
-
-
-// --- API FUNCTION 1: GENERATE AI TEXT ---
+// ... (keep generateAiText, extractSearchKeywords, getAlternativeKeywords, searchForRelevantImages, findRelatedWebArticles, findRelatedVideo exactly as they are) ...
 async function generateAiText(article) {
     const prompt = `
         You are a content curator for "Phase Loop Records," focused on deep, technical electronic/rock music news, adhering to journalistic best practices (clarity, accuracy, conciseness).
@@ -129,14 +123,9 @@ async function generateAiText(article) {
         return { headline: "AI Failed", description: "Generation Error. See server logs.", caption: "Error.", originalSource: article.source };
     }
 }
-
-// --- API FUNCTION 2: EXTRACT SEARCH KEYWORDS ---
 async function extractSearchKeywords(headline, description) {
     console.log(`[AI Keywords] Extracting keywords from: "${headline}" / "${description}"`);
     const inputText = `Headline: ${headline}\nDescription: ${description}`;
-    
-    // --- THIS IS THE FIX ---
-    // The inputText was missing from the prompt, causing the AI to ask for it.
     const prompt = `
         Analyze the following text about a music news item:
         ---
@@ -145,8 +134,6 @@ async function extractSearchKeywords(headline, description) {
         Identify the main subject(s) (artist, event, topic) from the text above.
         Based ONLY on the main subject(s), provide the BEST concise keyword phrase (max 4 words) suitable for a Google Image Search.
         OUTPUT ONLY the keyword phrase.`;
-    // --- END OF FIX ---
-
     try {
         const generationResult = await ai.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }] });
         console.log("[AI Keywords] Received response from Gemini.");
@@ -173,8 +160,6 @@ async function extractSearchKeywords(headline, description) {
         return null;
     }
 }
-
-// --- API FUNCTION 3: GET ALTERNATIVE KEYWORDS ---
 async function getAlternativeKeywords(headline, description, previousKeywords = []) {
     const inputText = `Headline: ${headline}\nDescription: ${description}`;
     const previousKeywordsString = previousKeywords.length > 0 ? `The user has already tried searching with: ${previousKeywords.map(kw => `"${kw}"`).join(', ')}.` : "This is the first request for alternative keywords.";
@@ -212,9 +197,6 @@ async function getAlternativeKeywords(headline, description, previousKeywords = 
         return null;
     }
 }
-
-
-// --- API FUNCTION 4: SEARCH FOR IMAGES ---
 async function searchForRelevantImages(query, startIndex = 0) {
     console.log(`[Image Search] Searching for: "${query}" starting at index ${startIndex}`);
     try {
@@ -227,8 +209,6 @@ async function searchForRelevantImages(query, startIndex = 0) {
         return imagesData;
     } catch (error) { console.error(`[Image Search ERROR]`, error.message); return []; }
 }
-
-// --- API FUNCTION 5: FIND RELATED WEB ARTICLES ---
 async function findRelatedWebArticles(title, source) {
     const query = `${title} ${source}`;
     console.log(`[Web Search] Searching for: ${query}`);
@@ -241,8 +221,6 @@ async function findRelatedWebArticles(title, source) {
         return articles;
     } catch (error) { console.error(`[Web Search ERROR]`, error.message); return []; }
 }
-
-// --- API FUNCTION 6: FIND RELATED VIDEO (Title only) ---
 async function findRelatedVideo(title, source) {
     const query = `${title} video`; // Search using title only
     console.log(`[Video Search] Searching for: ${query}`);
@@ -256,7 +234,8 @@ async function findRelatedVideo(title, source) {
 }
 
 
-// --- *** UTILITY FUNCTION: GENERATE PREVIEW IMAGE *** ---
+// --- *** CRITICAL FIX: Image Generation Function *** ---
+// This function no longer saves to disk. It returns a buffer.
 async function generateSimplePreviewImage(imageUrl, overlayTextString) {
     console.log(`[Simple Preview] Starting preview generation.`);
     console.log(`[Simple Preview] Image URL: ${imageUrl}`);
@@ -264,7 +243,6 @@ async function generateSimplePreviewImage(imageUrl, overlayTextString) {
 
     try {
         if (!imageUrl || typeof imageUrl !== 'string') { throw new Error('Invalid imageUrl'); }
-        // Use the provided text directly. Remove markdown bolding.
         const cleanOverlayText = typeof overlayTextString === 'string' ? overlayTextString.replace(/^\*\*|\*\*$/g, '').trim() : '';
 
         console.log(`[Simple Preview] Fetching image: ${imageUrl}`);
@@ -293,10 +271,8 @@ async function generateSimplePreviewImage(imageUrl, overlayTextString) {
         }
         console.log(`[Simple Preview] Final Image Dimensions: ${targetWidth}x${targetHeight}`);
 
-        // --- Text Preparation (Use provided text) ---
         let overlayText = cleanOverlayText || " ";
 
-        // --- Dynamic Font Size & Wrapping ---
         let dynamicFontSize = Math.round(targetWidth * 0.028);
         if (dynamicFontSize < 16) dynamicFontSize = 16;
         if (dynamicFontSize > 36) dynamicFontSize = 36;
@@ -307,7 +283,6 @@ async function generateSimplePreviewImage(imageUrl, overlayTextString) {
         const escapedOverlayText = overlayLines.map(line => escapeXml(line));
         console.log(`[Simple Preview] Text for overlay:`, escapedOverlayText);
 
-        // --- Dynamic SVG Generation ---
         const lineSpacing = 1.3;
         const padding = Math.round(overlayFontSize * 0.75);
         const textBlockHeight = overlayLines.length * overlayFontSize + (overlayLines.length > 1 ? (overlayLines.length - 1) * overlayFontSize * (lineSpacing - 1) : 0) ;
@@ -329,29 +304,24 @@ async function generateSimplePreviewImage(imageUrl, overlayTextString) {
         </svg>`;
         console.log(`[Simple Preview] Generated SVG Overlay (${targetWidth}x${overlayHeight}).`);
 
-        // --- Composite Image ---
         console.log(`[Simple Preview] Compositing overlay...`);
         const compositeTop = Math.round(targetHeight - overlayHeight - 10);
-        console.log(`[Simple Preview] Target height: ${targetHeight}, Overlay height: ${overlayHeight}, Composite top: ${compositeTop}`);
 
         const finalImageBuffer = await sharp(processedImageBuffer)
             .composite([{ input: Buffer.from(svgOverlay), top: compositeTop < 0 ? 0 : compositeTop, left: 0 }])
-            .png().toBuffer();
+            .png().toBuffer(); // <-- Convert to buffer
         console.log("[Simple Preview] Image processing complete.");
 
-        // --- Save and Return ---
-        const filename = `preview_${Date.now()}.png`;
-        const imagePath = path.join(process.cwd(), 'public', filename);
-        await fs.writeFile(imagePath, finalImageBuffer);
-        console.log(`[Simple Preview] Success: Image saved to ${imagePath}`);
-        return `/${filename}`;
+        // --- Return Buffer ---
+        console.log(`[Simple Preview] Success: Returning image buffer.`);
+        return finalImageBuffer; // <-- RETURN THE BUFFER
 
     } catch (error) {
         console.error("--- generateSimplePreviewImage: CATCH BLOCK ENTERED ---");
         console.error("[generateSimplePreviewImage ERROR RAW]", error);
         console.error(`[generateSimplePreviewImage ERROR Message]: ${error.message}`);
         console.log("--- generateSimplePreviewImage: Function END (Error) ---");
-        return '/fallback.png';
+        return null; // <-- RETURN NULL ON FAILURE
     }
 }
 // --- END UPDATED FUNCTION ---

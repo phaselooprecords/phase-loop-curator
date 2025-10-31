@@ -1,15 +1,13 @@
-// server.js (UPDATED AND FIXED)
+// server.js (UPDATED with Admin Auth and new routes)
 
 // 1. Import modules
 const express = require('express');
 const path = require('path');
-const { startNewsFetch } = require('./aggregator.js');
 const bodyParser = require('body-parser');
+const basicAuth = require('express-basic-auth'); // <-- NEW: For password
 const aggregator = require('./aggregator');
 const db = require('./database');
 const curator = require('./curator');
-// const cluster = require('cluster'); // <-- REMOVED
-// const os = require('os'); // <-- REMOVED
 
 // 2. Initialize the app and set the port
 const app = express();
@@ -17,7 +15,21 @@ const PORT = process.env.PORT || 3000;
 
 // --- MIDDLEWARE SETUP ---
 app.use(bodyParser.json());
-app.use(express.static('public')); // This should serve index.html
+app.use(express.static('public')); // This serves homepage.html, fallback-thumbnail.png etc.
+
+// --- NEW: Basic Authentication Middleware ---
+const adminUser = process.env.ADMIN_USER || 'admin';
+const adminPass = process.env.ADMIN_PASSWORD;
+
+if (!adminPass) {
+    console.error("CRITICAL: ADMIN_PASSWORD environment variable is not set. Admin panel will not be accessible.");
+}
+
+const adminAuth = basicAuth({
+    users: { [adminUser]: adminPass },
+    challenge: true,
+    unauthorizedResponse: 'Access Denied. Please check your credentials.'
+});
 
 // --- API ROUTES (Endpoints) ---
 
@@ -128,82 +140,104 @@ app.post('/api/find-video', async (req, res) => {
     }
 });
 
-// Simple Preview Image Generation
+// --- CRITICAL FIX: Image Streaming Endpoint ---
 app.post('/api/generate-simple-preview', async (req, res) => {
     console.log("--- /api/generate-simple-preview: Endpoint START ---");
     const { imageUrl, overlayText } = req.body;
-    console.log(`[/api/generate-simple-preview] INPUT imageUrl: ${imageUrl}`);
-    console.log(`[/api/generate-simple-preview] INPUT overlayText: ${overlayText}`);
 
     if (!imageUrl || !overlayText) {
-        console.log("[/api/generate-simple-preview] Validation Failed: Missing imageUrl or overlayText.");
-        return res.status(400).json({ error: 'Missing data for preview (imageUrl or overlayText).', previewImagePath: '/fallback.png' });
+        console.log("[/api/generate-simple-preview] Validation Failed: Missing data.");
+        return res.status(400).json({ error: 'Missing data for preview.' });
     }
-
     try {
-        console.log("[/api/generate-simple-preview] Calling curator.generateSimplePreviewImage...");
-        const previewImagePath = await curator.generateSimplePreviewImage(imageUrl, overlayText);
-        console.log(`[/api/generate-simple-preview] curator function returned: ${previewImagePath}`);
-
-        if (previewImagePath === '/fallback.png') {
-            console.log("[/api/generate-simple-preview] Curator returned fallback path. Sending error indicator response.");
-             res.status(200).json({ previewImagePath: '/fallback.png', error: 'Preview generation failed on server.' });
-        } else if (previewImagePath && typeof previewImagePath === 'string' && previewImagePath.startsWith('/preview_')) {
-             console.log("[/api/generate-simple-preview] Curator returned valid path. Sending success response.");
-             res.status(200).json({ previewImagePath: previewImagePath });
+        // This function now returns a buffer or null
+        const imageBuffer = await curator.generateSimplePreviewImage(imageUrl, overlayText); 
+        
+        if (imageBuffer) {
+            // Set the correct content type and send the buffer directly
+            console.log("[/api/generate-simple-preview] Success, streaming image buffer.");
+            res.set('Content-Type', 'image/png');
+            res.send(imageBuffer);
         } else {
-             console.error("[/api/generate-simple-preview] Curator returned unexpected value:", previewImagePath);
-             throw new Error('Unexpected return value from image generator.');
+            // Send a 500 error if the buffer is null (generation failed)
+            console.log("[/api/generate-simple-preview] Curator returned null buffer.");
+            res.status(500).json({ error: 'Preview generation failed on server.' });
         }
-        console.log("--- /api/generate-simple-preview: Endpoint END (Success Path) ---");
-
     } catch (error) {
-        console.error("--- /api/generate-simple-preview: CATCH BLOCK ERROR ---");
-        console.error("[/api/generate-simple-preview ERROR RAW]", error);
-        console.error(`[/api/generate-simple-preview ERROR Message]: ${error.message}`);
-        console.log("--- /api/generate-simple-preview: Endpoint END (Error Path) ---");
-        res.status(500).json({ error: 'Internal server error during preview generation.', previewImagePath: '/fallback.png' });
+        console.error("--- /api/generate-simple-preview: CATCH BLOCK ERROR ---", error);
+        res.status(500).json({ error: 'Internal server error.' });
     }
 });
 
 // Social Media Sharing (MOCK-UP)
 app.post('/api/share', async (req, res) => {
     console.log("--> Received request for /api/share");
-    const { imagePath, caption, platform } = req.body;
-    console.log(`\n*** MOCK SHARE REQUEST ***`);
-    console.log(`Platform: ${platform}`);
-    console.log(`Image Path: ${imagePath}`);
-    console.log(`Caption: ${(caption || '').substring(0, 80)}...`);
-    console.log(`**************************\n`);
+    // ... (rest of your share logic)
+    res.json({ success: true, message: `Successfully simulated sharing!` });
+});
 
-    if (platform === 'Instagram Story') {
-        return res.status(403).json({ error: 'Instagram Story posting via API is restricted.' });
+// --- NEW: API Endpoints for Public Link Page ---
+
+// Add a new link (This would be called from the admin panel if you add a 'publish' button)
+app.post('/api/links/add', adminAuth, async (req, res) => {
+    console.log("--> Received request for /api/links/add");
+    const { title, link } = req.body;
+    if (!title || !link) {
+        return res.status(400).json({ success: false, error: 'Missing title or link.' });
     }
-    res.json({ success: true, message: `Successfully simulated sharing to ${platform}!` });
+    try {
+        await db.addLink(title, link);
+        res.json({ success: true, message: 'Link added!' });
+    } catch (error) {
+        console.error("!!! ERROR in /api/links/add:", error);
+        res.status(500).json({ success: false, error: 'Failed to add link.' });
+    }
+});
+
+// Get all links (for public homepage)
+app.get('/api/links/get', async (req, res) => {
+    console.log("--> Received request for /api/links/get");
+    try {
+        const links = await db.getAllLinks();
+        res.json(links);
+    } catch (error) {
+        console.error("!!! ERROR in /api/links/get:", error);
+        res.status(500).json({ error: 'Failed to retrieve links.' });
+    }
+});
+
+
+// --- PAGE ROUTING (UPDATED) ---
+
+// NEW: Public root: Serves the new public homepage
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'homepage.html'));
+});
+
+// NEW: Admin panel: Serves the original curator app, now password protected
+app.get('/admin', adminAuth, (req, res) => {
+    if (!adminPass) {
+        return res.status(500).send("Server is not configured with an ADMIN_PASSWORD. Access denied.");
+    }
+    // It serves the same index.html, but only from the /admin route
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 
 // --- SERVER START FUNCTION (REFACTORED) ---
 async function startApp() {
-    // 1. Start listening for HTTP requests *immediately*
-    // This responds to Railway's health checks.
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running at http://localhost:${PORT} and listening for connections.`);
-        
-        // 2. Now, connect to the database and start the scheduler in the background.
-        // This is wrapped in an IIFE (Immediately Invoked Function Expression)
         (async () => {
             try {
                 await db.connectDB();
                 aggregator.startScheduler();
             } catch (dbError) {
                 console.error("!!! CRITICAL: Server is LIVE but DB connection FAILED:", dbError);
-                // The server is running, but API calls will fail.
-                // This is better than the whole app failing to start.
             }
         })();
     });
 }
 
 // --- INITIATE SERVER START ---
-startApp(); // Just call the function directly. No more cluster logic.
+startApp();
