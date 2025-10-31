@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phase Loop Records Curator</title>
     <style>
-        /* (Your existing CSS styles remain unchanged) */
+        /* (Tüm CSS stilleriniz aynı kalır) */
         body { font-family: Arial, sans-serif; background-color: #000000; color: #f0f0f0; margin: 0; padding: 20px; }
         .container { max-width: 600px; margin: auto; }
         h1, h2, h3 { color: #ffffff; border-bottom: 2px solid #555; padding-bottom: 10px; text-align: center; margin-bottom: 15px; }
@@ -112,8 +112,8 @@
     // --- Global State Variables ---
     let currentArticleData = null;
     let currentCuratedData = null;
-    let simplePreviewImagePath = null; // <-- CRITICAL: This will now be an Object URL (blob)
-    let currentObjectUrl = null; // <-- NEW: Helper to manage Object URL memory
+    let simplePreviewImagePath = null; 
+    let currentObjectUrl = null; 
     let currentVideoUrl = null;
     const IMAGES_PER_PAGE = 9;
     let currentSearchKeywords = [];
@@ -236,7 +236,6 @@
     async function handleArticleTap(article) {
         console.log("handleArticleTap called for:", article.title);
 
-        // --- NEW: Revoke old object URL to prevent memory leaks ---
         if (currentObjectUrl) {
             URL.revokeObjectURL(currentObjectUrl);
             currentObjectUrl = null;
@@ -526,7 +525,6 @@
     }
 
     // --- Call Simple Preview API ---
-    // *** CRITICAL FIX: This function now handles a blob response ***
     async function startSimplePreviewPipeline(mediaUrl, contextUrl = null) {
          console.log(`startSimplePreviewPipeline called with URL: ${mediaUrl}, Context: ${contextUrl}`);
          const isVideo = currentVideoUrl && mediaUrl === currentVideoUrl; 
@@ -537,7 +535,6 @@
          simplePreviewImagePath = null; 
          currentImageContextUrl = isImageUrl ? contextUrl : null;
          
-        // Revoke old object URL if it exists
         if (currentObjectUrl) {
             URL.revokeObjectURL(currentObjectUrl);
             currentObjectUrl = null;
@@ -568,18 +565,17 @@
                   console.log(`startSimplePreviewPipeline: Received response. Status: ${response.status}`);
                   
                   if (!response.ok) { 
-                      const errorData = await response.json(); // Try to parse error
+                      const errorData = await response.json(); 
                       console.error(`startSimplePreviewPipeline: Error response: ${response.status}`, errorData.error); 
                       throw new Error(`Server error: ${errorData.error || response.status}`); 
                   }
 
-                  // Check if we got an image back
                   const contentType = response.headers.get("content-type");
                   if (contentType && contentType.includes("image/png")) {
                        console.log("startSimplePreviewPipeline: Received image/png blob.");
                        const imageBlob = await response.blob();
-                       simplePreviewImagePath = URL.createObjectURL(imageBlob); // Create object URL
-                       currentObjectUrl = simplePreviewImagePath; // Store for memory management
+                       simplePreviewImagePath = URL.createObjectURL(imageBlob); 
+                       currentObjectUrl = simplePreviewImagePath; 
                        console.log(`startSimplePreviewPipeline: Object URL created: ${simplePreviewImagePath}`);
                   } else {
                        console.error('startSimplePreviewPipeline: Invalid data received (not an image).');
@@ -587,7 +583,6 @@
                   }
 
               } else if (isVideo) {
-                  // Video case
                   alert("Preparing video preview...");
                   console.log("startSimplePreviewPipeline: Setting up video preview.");
                   displayVideo(currentVideoUrl, 'simple-preview-video-player'); 
@@ -638,7 +633,7 @@
         }
     }
     
-    // --- Share Button Logic (UPDATED for blob) ---
+    // --- Share Button Logic ---
     async function handleShare() {
         if (!simplePreviewImagePath && !currentVideoUrl) { alert("No image/video generated."); return; } 
         if (!currentCuratedData) { alert("AI caption not ready."); return; } 
@@ -649,7 +644,7 @@
         if (navigator.share) { 
             try { 
                 if (simplePreviewImagePath && navigator.canShare) { 
-                    const imageUrl = simplePreviewImagePath; // This is the blob: URL
+                    const imageUrl = simplePreviewImagePath; 
                     console.log(`Fetching image for sharing: ${imageUrl}`); 
                     const response = await fetch(imageUrl); 
                     if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`); 
@@ -690,7 +685,7 @@
         }
     }
     
-    // --- Download Button Logic (UPDATED for blob) ---
+    // --- Download Button Logic ---
     function handleDownload() {
         let didDownload = false; 
         if (currentVideoUrl) { 
@@ -698,12 +693,15 @@
             window.open(currentVideoUrl, '_blank'); 
             didDownload = true; 
         } else if (simplePreviewImagePath) { 
-            // This works for object URLs
             if (!currentCuratedData) { alert("AI data needed for filename."); return; } 
             const link = document.createElement('a'); 
             link.href = simplePreviewImagePath; 
-            const cleanedHeadlineText = (currentCuratedData?.headline || 'phaseloop-post').replace(/^\*\*|\*\*$/g, '').replace(/[^a-z0-NKNk/gi, '_').toLowerCase(); 
+            
+            // *** THIS IS THE FIX ***
+            // The regex was broken here.
+            const cleanedHeadlineText = (currentCuratedData?.headline || 'phaseloop-post').replace(/^\*\*|\*\*$/g, '').replace(/[^a-z0-9]/gi, '_').toLowerCase(); 
             link.download = `${cleanedHeadlineText}.png`; 
+            
             document.body.appendChild(link); 
             link.click(); 
             document.body.removeChild(link); 
