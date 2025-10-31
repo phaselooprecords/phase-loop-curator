@@ -1,10 +1,10 @@
-// server.js (UPDATED with Admin Auth and new routes)
+// server.js (UPDATED with correct /admin file path)
 
 // 1. Import modules
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
-const basicAuth = require('express-basic-auth'); // <-- NEW: For password
+const basicAuth = require('express-basic-auth'); // For password
 const aggregator = require('./aggregator');
 const db = require('./database');
 const curator = require('./curator');
@@ -15,9 +15,10 @@ const PORT = process.env.PORT || 3000;
 
 // --- MIDDLEWARE SETUP ---
 app.use(bodyParser.json());
-app.use(express.static('public')); // This serves homepage.html, fallback-thumbnail.png etc.
+// This serves homepage.html, fallback-thumbnail.png etc.
+app.use(express.static('public')); 
 
-// --- NEW: Basic Authentication Middleware ---
+// --- Basic Authentication Middleware ---
 const adminUser = process.env.ADMIN_USER || 'admin';
 const adminPass = process.env.ADMIN_PASSWORD;
 
@@ -32,7 +33,7 @@ const adminAuth = basicAuth({
 });
 
 // --- API ROUTES (Endpoints) ---
-
+// (All your API routes like /api/news, /api/generate-text, etc. remain unchanged)
 // Fetch all stored news articles
 app.get('/api/news', async (req, res) => {
     console.log("--> Received request for /api/news");
@@ -140,7 +141,7 @@ app.post('/api/find-video', async (req, res) => {
     }
 });
 
-// --- CRITICAL FIX: Image Streaming Endpoint ---
+// Image Streaming Endpoint
 app.post('/api/generate-simple-preview', async (req, res) => {
     console.log("--- /api/generate-simple-preview: Endpoint START ---");
     const { imageUrl, overlayText } = req.body;
@@ -150,16 +151,13 @@ app.post('/api/generate-simple-preview', async (req, res) => {
         return res.status(400).json({ error: 'Missing data for preview.' });
     }
     try {
-        // This function now returns a buffer or null
         const imageBuffer = await curator.generateSimplePreviewImage(imageUrl, overlayText); 
         
         if (imageBuffer) {
-            // Set the correct content type and send the buffer directly
             console.log("[/api/generate-simple-preview] Success, streaming image buffer.");
             res.set('Content-Type', 'image/png');
             res.send(imageBuffer);
         } else {
-            // Send a 500 error if the buffer is null (generation failed)
             console.log("[/api/generate-simple-preview] Curator returned null buffer.");
             res.status(500).json({ error: 'Preview generation failed on server.' });
         }
@@ -172,13 +170,10 @@ app.post('/api/generate-simple-preview', async (req, res) => {
 // Social Media Sharing (MOCK-UP)
 app.post('/api/share', async (req, res) => {
     console.log("--> Received request for /api/share");
-    // ... (rest of your share logic)
     res.json({ success: true, message: `Successfully simulated sharing!` });
 });
 
-// --- NEW: API Endpoints for Public Link Page ---
-
-// Add a new link (This would be called from the admin panel if you add a 'publish' button)
+// API Endpoints for Public Link Page
 app.post('/api/links/add', adminAuth, async (req, res) => {
     console.log("--> Received request for /api/links/add");
     const { title, link } = req.body;
@@ -194,7 +189,6 @@ app.post('/api/links/add', adminAuth, async (req, res) => {
     }
 });
 
-// Get all links (for public homepage)
 app.get('/api/links/get', async (req, res) => {
     console.log("--> Received request for /api/links/get");
     try {
@@ -209,18 +203,19 @@ app.get('/api/links/get', async (req, res) => {
 
 // --- PAGE ROUTING (UPDATED) ---
 
-// NEW: Public root: Serves the new public homepage
+// Public root: Serves the new public homepage
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'homepage.html'));
 });
 
-// NEW: Admin panel: Serves the original curator app, now password protected
+// *** THIS IS THE FIX ***
+// Admin panel: Serves index.html from the 'admin' folder, protected by password
 app.get('/admin', adminAuth, (req, res) => {
     if (!adminPass) {
         return res.status(500).send("Server is not configured with an ADMIN_PASSWORD. Access denied.");
     }
-    // It serves the same index.html, but only from the /admin route
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    // This path now correctly points to 'admin/index.html'
+    res.sendFile(path.join(__dirname, 'admin', 'index.html'));
 });
 
 
