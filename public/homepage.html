@@ -3,108 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phase Loop Records - Links</title>
+    <title>Phase Loop Records</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #121212;
-            color: #e0e0e0;
+        /* Global Reset */
+        body, html {
             margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
-        .container {
-            max-width: 600px;
+            padding: 0;
             width: 100%;
-            text-align: center;
-        }
-        h1 {
-            color: #ffffff;
-            font-size: 1.5rem;
-            margin-bottom: 30px;
-        }
-        #link-list-content {
+            height: 100%;
+            overflow-x: hidden;
+            font-family: 'Arial', sans-serif; /* A clean, modern font */
+            background-color: #000; /* Solid black background */
+            color: #fff; /* White text for contrast */
             display: flex;
             flex-direction: column;
-            gap: 15px;
-        }
-        .link-button {
-            display: block;
-            background-color: #2a2a2a;
-            color: #e0e0e0;
-            text-decoration: none;
-            padding: 20px;
-            border-radius: 10px;
-            font-size: 1.1rem;
-            font-weight: 500;
+            justify-content: center;
+            align-items: center;
             text-align: center;
-            border: 1px solid #444;
-            transition: background-color 0.2s ease, transform 0.2s ease;
-            word-wrap: break-word;
+            position: relative;
         }
-        .link-button:hover {
-            background-color: #3a3a3a;
-            transform: scale(1.02);
+
+        /* Subtle Background Grid/Texture - inspired by circuit boards/city grids */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(to right, #1a1a1a 1px, transparent 1px),
+                linear-gradient(to bottom, #1a1a1a 1px, transparent 1px);
+            background-size: 20px 20px; /* Adjust grid size as desired */
+            opacity: 0.1; /* Very subtle */
+            z-index: -1;
         }
-        .loader {
-            color: #888;
-            font-size: 1.1rem;
+
+        .container {
+            max-width: 90%;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 1; /* Ensure content is above the background grid */
         }
+
+        .logo {
+            margin-bottom: 30px;
+        }
+
+        .logo img {
+            width: 180px; /* Adjust size as needed */
+            height: auto;
+            border-radius: 50%; /* If you want to force circular, even if logo is square */
+            border: 2px solid #fff; /* White border to make it pop */
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2); /* Subtle glow */
+            animation: pulse 2s infinite alternate ease-in-out; /* Subtle breathing effect */
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 255, 255, 0.2); }
+            100% { transform: scale(1.03); box-shadow: 0 0 20px rgba(255, 255, 255, 0.4); }
+        }
+
+        h1 {
+            font-size: 2.8em;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #fff;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.5); /* Text glow */
+        }
+
+        h2 {
+            font-size: 1.2em;
+            color: #bbb;
+            margin-top: 0;
+            margin-bottom: 40px;
+        }
+
+        .links-grid {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            justify-content: center;
+            gap: 20px; /* Space between buttons */
+            margin-top: 30px;
+        }
+
+        .link-item {
+            display: block; /* Make it a block for better spacing/sizing */
+            width: 220px; /* Fixed width for link buttons */
+            padding: 15px 25px;
+            background-color: #333; /* Dark gray button background */
+            color: #fff;
+            text-decoration: none;
+            border: 2px solid #555; /* Slightly lighter border */
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .link-item:hover {
+            background-color: #555; /* Lighter gray on hover */
+            border-color: #eee; /* White border on hover */
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.6);
+        }
+
         .footer {
-            margin-top: 40px;
-            font-size: 0.8rem;
-            color: #555;
+            margin-top: 60px;
+            font-size: 0.8em;
+            color: #666; /* Darker gray for footer */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2em;
+            }
+            h2 {
+                font-size: 1em;
+            }
+            .links-grid {
+                flex-direction: column; /* Stack buttons vertically on small screens */
+                align-items: center;
+            }
+            .link-item {
+                width: 80%; /* Make buttons wider on small screens */
+                max-width: 250px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Phase Loop Records</h1>
-        
-        <div id="link-list-content">
-            <p class="loader">Loading links...</p>
+        <div class="logo">
+            <img src="/phaseloop-logo.png" alt="Phase Loop Records Logo">
+        </div>
+        <h1>PHASE LOOP RECORDS</h1>
+        <h2>Your portal to cutting-edge electronic sounds.</h2>
+
+        <div id="links-grid" class="links-grid">
+            <p style="color: #888;">Loading links...</p>
         </div>
 
         <div class="footer">
-            <p>Powered by Phase Loop Curator</p>
+            Powered by Phase Loop Curator
         </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchLinks();
-        });
+        document.addEventListener('DOMContentLoaded', fetchAndDisplayLinks);
 
-        async function fetchLinks() {
-            const contentArea = document.getElementById('link-list-content');
+        async function fetchAndDisplayLinks() {
+            const linksGrid = document.getElementById('links-grid');
+            linksGrid.innerHTML = '<p style="color: #888;">Loading links...</p>'; // Show loading state
+
             try {
-                // This is the new API endpoint for public links
                 const response = await fetch('/api/links/get');
-                if (!response.ok) throw new Error('Failed to fetch links.');
-                
-                const links = await response.json();
-                
-                if (!links || links.length === 0) {
-                    contentArea.innerHTML = '<p class="loader">No links have been added yet.</p>';
-                    return;
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                const links = await response.json();
 
-                contentArea.innerHTML = ''; // Clear the "Loading..." message
+                linksGrid.innerHTML = ''; // Clear loading state
 
-                links.forEach(link => {
-                    const linkElement = document.createElement('a');
-                    linkElement.className = 'link-button';
-                    linkElement.href = link.link;
-                    linkElement.target = '_blank';
-                    linkElement.rel = 'noopener noreferrer';
-                    linkElement.textContent = link.title;
-                    contentArea.appendChild(linkElement);
-                });
-
+                if (links.length === 0) {
+                    linksGrid.innerHTML = '<p style="color: #888;">No links have been added yet.</p>';
+                } else {
+                    links.forEach(link => {
+                        const linkElement = document.createElement('a');
+                        linkElement.href = link.link;
+                        linkElement.target = '_blank';
+                        linkElement.rel = 'noopener noreferrer';
+                        linkElement.className = 'link-item';
+                        linkElement.textContent = link.title;
+                        linksGrid.appendChild(linkElement);
+                    });
+                }
             } catch (error) {
-                console.error("Error fetching links:", error);
-                contentArea.innerHTML = `<p class="loader" style="color: red;">Error: ${error.message}</p>`;
+                console.error('Error fetching links:', error);
+                linksGrid.innerHTML = '<p style="color: red;">Failed to load links. Please try again later.</p>';
             }
         }
     </script>
